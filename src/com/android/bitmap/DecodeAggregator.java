@@ -16,11 +16,9 @@
 
 package com.android.bitmap;
 
-import com.android.bitmap.DecodeTask.Request;
+public class DecodeAggregator extends ContiguousFIFOAggregator<RequestKey> {
 
-public class DecodeAggregator extends ContiguousFIFOAggregator<Request> {
-
-    public interface Callback extends ContiguousFIFOAggregator.Callback<Request> {
+    public interface Callback extends ContiguousFIFOAggregator.Callback<RequestKey> {
 
     }
 }

@@ -27,7 +27,7 @@ import android.util.Log;
 
 import com.android.bitmap.BitmapCache;
 import com.android.bitmap.DecodeTask;
-import com.android.bitmap.DecodeTask.Request;
+import com.android.bitmap.RequestKey;
 import com.android.bitmap.ReusableBitmap;
 import com.android.bitmap.util.BitmapUtils;
 import com.android.bitmap.util.RectUtils;
@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCallback,
         Drawable.Callback {
 
-    private BitmapRequestKey mCurrKey;
+    private RequestKey mCurrKey;
     private ReusableBitmap mBitmap;
     private final BitmapCache mCache;
     private DecodeTask mTask;
@@ -81,7 +81,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
         mPaint.setFilterBitmap(true);
     }
 
-    public DecodeTask.Request getKey() {
+    public RequestKey getKey() {
         return mCurrKey;
     }
 
@@ -98,11 +98,11 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
         setImage(null);
     }
 
-    public void bind(BitmapRequestKey key) {
+    public void bind(RequestKey key) {
         setImage(key);
     }
 
-    private void setImage(final BitmapRequestKey key) {
+    private void setImage(final RequestKey key) {
         if (mCurrKey != null && mCurrKey.equals(key)) {
             return;
         }
@@ -201,10 +201,10 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
     }
 
     @Override
-    public void onDecodeBegin(final Request key) { }
+    public void onDecodeBegin(final RequestKey key) { }
 
     @Override
-    public void onDecodeComplete(final Request key, final ReusableBitmap result) {
+    public void onDecodeComplete(final RequestKey key, final ReusableBitmap result) {
         if (key.equals(mCurrKey)) {
             setBitmap(result);
         } else {
@@ -217,7 +217,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
     }
 
     @Override
-    public void onDecodeCancel(final Request key) { }
+    public void onDecodeCancel(final RequestKey key) { }
 
     private void setBitmap(ReusableBitmap bmp) {
         if (mBitmap != null && mBitmap != bmp) {

@@ -46,7 +46,7 @@ import java.io.InputStream;
  */
 public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
 
-    private final Request mKey;
+    private final RequestKey mKey;
     private final int mDestW;
     private final int mDestH;
     private final DecodeCallback mDecodeCallback;
@@ -61,20 +61,6 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
     private static final boolean DEBUG = false;
 
     /**
-     * The decode task uses this class to get input to decode. You must implement at least one of
-     * {@link #createFd()} or {@link #createInputStream()}. {@link DecodeTask} will prioritize
-     * {@link #createFd()} before falling back to {@link #createInputStream()}.
-     * <p>
-     * When {@link DecodeTask} is used in conjunction with a {@link BitmapCache}, objects of this
-     * type will also serve as cache keys to fetch cached data.
-     */
-    public interface Request {
-        AssetFileDescriptor createFd() throws IOException;
-        InputStream createInputStream() throws IOException;
-        boolean hasOrientationExif() throws IOException;
-    }
-
-    /**
      * Callback interface for clients to be notified of decode state changes and completion.
      */
     public interface DecodeCallback {
@@ -84,20 +70,20 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
          * <p>
          * N.B. this method runs on the UI thread.
          */
-        void onDecodeBegin(Request key);
+        void onDecodeBegin(RequestKey key);
         /**
          * The task is now complete and the ReusableBitmap is available for use. Clients should
          * double check that the request matches what the client is expecting.
          */
-        void onDecodeComplete(Request key, ReusableBitmap result);
+        void onDecodeComplete(RequestKey key, ReusableBitmap result);
         /**
-         * The task has been canceled, and {@link #onDecodeComplete(Request, ReusableBitmap)} will
-         * not be called.
+         * The task has been canceled, and {@link #onDecodeComplete(RequestKey, ReusableBitmap)}
+         * will not be called.
          */
-        void onDecodeCancel(Request key);
+        void onDecodeCancel(RequestKey key);
     }
 
-    public DecodeTask(Request key, int w, int h, DecodeCallback view,
+    public DecodeTask(RequestKey key, int w, int h, DecodeCallback view,
             BitmapCache cache) {
         mKey = key;
         mDestW = w;

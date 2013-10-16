@@ -19,7 +19,6 @@ package com.android.bitmap;
 import android.util.Log;
 import android.util.LruCache;
 
-import com.android.bitmap.DecodeTask.Request;
 import com.android.bitmap.ReusableBitmap.NullReusableBitmap;
 import com.android.bitmap.util.Trace;
 
@@ -33,12 +32,12 @@ import com.android.bitmap.util.Trace;
  * when the same key is used to retrieve the value, a {@link NullReusableBitmap} singleton will
  * be returned.
  */
-public class UnrefedBitmapCache extends UnrefedPooledCache<Request, ReusableBitmap>
+public class UnrefedBitmapCache extends UnrefedPooledCache<RequestKey, ReusableBitmap>
         implements BitmapCache {
     private boolean mBlocking = false;
     private final Object mLock = new Object();
 
-    private LruCache<Request, NullReusableBitmap> mNullRequests;
+    private LruCache<RequestKey, NullReusableBitmap> mNullRequests;
 
     private final static boolean DEBUG = false;
     private final static String TAG = UnrefedBitmapCache.class.getSimpleName();
@@ -48,7 +47,7 @@ public class UnrefedBitmapCache extends UnrefedPooledCache<Request, ReusableBitm
         super(targetSizeBytes, nonPooledFraction);
 
         if (nullCapacity > 0) {
-            mNullRequests = new LruCache<Request, NullReusableBitmap>(nullCapacity);
+            mNullRequests = new LruCache<RequestKey, NullReusableBitmap>(nullCapacity);
         }
     }
 
@@ -118,7 +117,7 @@ public class UnrefedBitmapCache extends UnrefedPooledCache<Request, ReusableBitm
     }
 
     @Override
-    public ReusableBitmap get(final Request key, final boolean incrementRefCount) {
+    public ReusableBitmap get(final RequestKey key, final boolean incrementRefCount) {
         if (mNullRequests != null && mNullRequests.get(key) != null) {
             return NullReusableBitmap.getInstance();
         }
@@ -129,7 +128,7 @@ public class UnrefedBitmapCache extends UnrefedPooledCache<Request, ReusableBitm
      * Note: The cache only supports same-sized bitmaps.
      */
     @Override
-    public ReusableBitmap put(final Request key, final ReusableBitmap value) {
+    public ReusableBitmap put(final RequestKey key, final ReusableBitmap value) {
         if (mNullRequests != null && (value == null || value == NullReusableBitmap.getInstance())) {
             mNullRequests.put(key, NullReusableBitmap.getInstance());
             return null;

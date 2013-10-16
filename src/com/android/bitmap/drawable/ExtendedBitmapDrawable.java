@@ -36,7 +36,7 @@ import com.android.bitmap.R;
 import com.android.bitmap.BitmapCache;
 import com.android.bitmap.DecodeAggregator;
 import com.android.bitmap.DecodeTask;
-import com.android.bitmap.DecodeTask.Request;
+import com.android.bitmap.RequestKey;
 import com.android.bitmap.ReusableBitmap;
 import com.android.bitmap.util.BitmapUtils;
 import com.android.bitmap.util.RectUtils;
@@ -58,7 +58,7 @@ import java.util.concurrent.TimeUnit;
 public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.DecodeCallback,
         Drawable.Callback, Runnable, Parallaxable, DecodeAggregator.Callback {
 
-    private BitmapRequestKey mCurrKey;
+    private RequestKey mCurrKey;
     private ReusableBitmap mBitmap;
     private final BitmapCache mCache;
     private DecodeAggregator mDecodeAggregator;
@@ -122,7 +122,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         mProgress.setCallback(this);
     }
 
-    public DecodeTask.Request getKey() {
+    public RequestKey getKey() {
         return mCurrKey;
     }
 
@@ -149,11 +149,11 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         setImage(null);
     }
 
-    public void bind(BitmapRequestKey key) {
+    public void bind(RequestKey key) {
         setImage(key);
     }
 
-    private void setImage(final BitmapRequestKey key) {
+    private void setImage(final RequestKey key) {
         if (mCurrKey != null && mCurrKey.equals(key)) {
             return;
         }
@@ -284,7 +284,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
     }
 
     @Override
-    public void onDecodeBegin(final Request key) {
+    public void onDecodeBegin(final RequestKey key) {
         if (mDecodeAggregator != null) {
             mDecodeAggregator.expect(key, this);
         } else {
@@ -293,7 +293,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
     }
 
     @Override
-    public void onBecomeFirstExpected(final Request key) {
+    public void onBecomeFirstExpected(final RequestKey key) {
         if (!key.equals(mCurrKey)) {
             return;
         }
@@ -310,7 +310,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
     }
 
     @Override
-    public void onDecodeComplete(final Request key, final ReusableBitmap result) {
+    public void onDecodeComplete(final RequestKey key, final ReusableBitmap result) {
         if (mDecodeAggregator != null) {
             mDecodeAggregator.execute(key, new Runnable() {
                 @Override
@@ -328,7 +328,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         }
     }
 
-    private void onDecodeCompleteImpl(final Request key, final ReusableBitmap result) {
+    private void onDecodeCompleteImpl(final RequestKey key, final ReusableBitmap result) {
         if (key.equals(mCurrKey)) {
             setBitmap(result);
         } else {
@@ -341,7 +341,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
     }
 
     @Override
-    public void onDecodeCancel(final Request key) {
+    public void onDecodeCancel(final RequestKey key) {
         if (mDecodeAggregator != null) {
             mDecodeAggregator.forget(key);
         }

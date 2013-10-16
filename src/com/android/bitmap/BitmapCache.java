@@ -16,7 +16,7 @@
 
 package com.android.bitmap;
 
-public interface BitmapCache extends PooledCache<DecodeTask.Request, ReusableBitmap> {
+public interface BitmapCache extends PooledCache<RequestKey, ReusableBitmap> {
 
     /**
      * Notify the cache when it should start and stop blocking for cache misses.
