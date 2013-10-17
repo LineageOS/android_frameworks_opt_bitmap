@@ -17,6 +17,7 @@
 package com.example.bitmapsample;
 
 import android.content.Context;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -54,7 +55,11 @@ public class BitmapView extends View {
 
     public void initialize(BitmapCache cache) {
         mBitmapDrawable = new BasicBitmapDrawable(getResources(), cache);
-        setBackground(mBitmapDrawable);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            setBackground(mBitmapDrawable);
+        } else {
+            setBackgroundDrawable(mBitmapDrawable);
+        }
     }
 
 }

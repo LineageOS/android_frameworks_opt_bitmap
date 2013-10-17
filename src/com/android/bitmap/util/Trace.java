@@ -16,45 +16,36 @@
 
 package com.android.bitmap.util;
 
-import java.lang.reflect.Method;
+import android.os.Build;
 
-public class Trace {
+/**
+ * Stand-in for {@link android.os.Trace}.
+ */
+public abstract class Trace {
 
-    private static Method sBegin;
-    private static Method sEnd;
-
-    public static void init() {
-        if (sBegin != null && sEnd != null) {
-            return;
-        }
-        try {
-            final Class<?> cls = Class.forName("android.os.Trace");
-            sBegin = cls.getMethod("beginSection", String.class);
-            sEnd = cls.getMethod("endSection");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
+    /**
+     * Begins systrace tracing for a given tag. No-op on unsupported platform versions.
+     *
+     * @param tag systrace tag to use
+     *
+     * @see android.os.Trace#beginSection(String)
+     */
     public static void beginSection(String tag) {
-        if (sBegin == null) {
-            return;
-        }
-        try {
-            sBegin.invoke(null, tag);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            android.os.Trace.beginSection(tag);
         }
     }
 
+    /**
+     * Ends systrace tracing for the most recently begun section. No-op on unsupported platform
+     * versions.
+     *
+     * @see android.os.Trace#endSection()
+     */
     public static void endSection() {
-        if (sEnd == null) {
-            return;
-        }
-        try {
-            sEnd.invoke(null, (Object[]) null);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            android.os.Trace.endSection();
         }
     }
+
 }
