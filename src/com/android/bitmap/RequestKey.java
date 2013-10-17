@@ -29,16 +29,12 @@ import java.io.InputStream;
  * <p>
  * Objects of this type will also serve as cache keys to fetch cached data for {@link PooledCache}s,
  * so they must implement {@link #equals(Object)} and {@link #hashCode()}.
+ * <p>
+ * Clients of this interface must also implement {@link #equals(Object)} and {@link #hashCode()} as
+ * this object will be used as a cache key.
  */
 
 public interface RequestKey {
-
-    @Override
-    public boolean equals(Object o);
-
-    @Override
-    public int hashCode();
-
     /**
      * Create an {@link AssetFileDescriptor} for a local file stored on the device. This method will
      * be called first; if it returns null, {@link #createInputStream()} will be called.
