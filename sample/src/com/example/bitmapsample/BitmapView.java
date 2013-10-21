@@ -54,7 +54,7 @@ public class BitmapView extends View {
     }
 
     public void initialize(BitmapCache cache) {
-        mBitmapDrawable = new BasicBitmapDrawable(getResources(), cache);
+        mBitmapDrawable = new BasicBitmapDrawable(getResources(), cache, true /* limitDensity */);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             setBackground(mBitmapDrawable);
         } else {

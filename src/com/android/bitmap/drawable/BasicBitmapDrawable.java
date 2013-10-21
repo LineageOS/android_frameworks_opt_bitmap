@@ -27,6 +27,8 @@ import android.util.Log;
 
 import com.android.bitmap.BitmapCache;
 import com.android.bitmap.DecodeTask;
+import com.android.bitmap.DecodeTask.DecodeOptions;
+import com.android.bitmap.NamedThreadFactory;
 import com.android.bitmap.RequestKey;
 import com.android.bitmap.ReusableBitmap;
 import com.android.bitmap.util.BitmapUtils;
@@ -50,34 +52,39 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
     private RequestKey mCurrKey;
     private ReusableBitmap mBitmap;
     private final BitmapCache mCache;
+    private final boolean mLimitDensity;
     private DecodeTask mTask;
     private int mDecodeWidth;
+
     private int mDecodeHeight;
 
+    private static final String TAG = BasicBitmapDrawable.class.getSimpleName();
     // based on framework CL:I015d77
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
     private static final int CORE_POOL_SIZE = CPU_COUNT + 1;
     private static final int MAXIMUM_POOL_SIZE = CPU_COUNT * 2 + 1;
+
     private static final Executor SMALL_POOL_EXECUTOR = new ThreadPoolExecutor(
             CORE_POOL_SIZE, MAXIMUM_POOL_SIZE, 1, TimeUnit.SECONDS,
-            new LinkedBlockingQueue<Runnable>(128));
+            new LinkedBlockingQueue<Runnable>(128), new NamedThreadFactory("decode"));
 
     private static final Executor EXECUTOR = SMALL_POOL_EXECUTOR;
 
-    private static final boolean LIMIT_BITMAP_DENSITY = true;
-
     private static final int MAX_BITMAP_DENSITY = DisplayMetrics.DENSITY_HIGH;
 
+    private static final float VERTICAL_CENTER = 1f / 2;
     private final float mDensity;
     private final Paint mPaint = new Paint();
+
     private final Rect mSrcRect = new Rect();
 
-    private static final String TAG = BasicBitmapDrawable.class.getSimpleName();
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = DecodeTask.DEBUG;
 
-    public BasicBitmapDrawable(final Resources res, final BitmapCache cache) {
+    public BasicBitmapDrawable(final Resources res, final BitmapCache cache,
+            final boolean limitDensity) {
         mDensity = res.getDisplayMetrics().density;
         mCache = cache;
+        mLimitDensity = limitDensity;
         mPaint.setFilterBitmap(true);
     }
 
@@ -156,7 +163,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
                     mBitmap.getLogicalWidth(), mBitmap.getLogicalHeight(),
                     bounds.width(), bounds.height(),
                     bounds.height(), Integer.MAX_VALUE,
-                    0.5f, false /* absoluteFraction */,
+                    VERTICAL_CENTER, false /* absoluteFraction */,
                     1, mSrcRect);
 
             final int orientation = mBitmap.getOrientation();
@@ -236,7 +243,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
         }
 
         Trace.beginSection("decode");
-        if (LIMIT_BITMAP_DENSITY) {
+        if (mLimitDensity) {
             final float scale =
                     Math.min(1f, (float) MAX_BITMAP_DENSITY / DisplayMetrics.DENSITY_DEFAULT
                             / mDensity);
@@ -254,7 +261,9 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
         if (mTask != null) {
             mTask.cancel();
         }
-        mTask = new DecodeTask(mCurrKey, bufferW, bufferH, this, mCache);
+        final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, VERTICAL_CENTER,
+                DecodeOptions.STRATEGY_ROUND_NEAREST);
+        mTask = new DecodeTask(mCurrKey, opts, this, mCache);
         mTask.executeOnExecutor(EXECUTOR);
         Trace.endSection();
     }

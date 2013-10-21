@@ -39,7 +39,7 @@ public class UnrefedBitmapCache extends UnrefedPooledCache<RequestKey, ReusableB
 
     private LruCache<RequestKey, NullReusableBitmap> mNullRequests;
 
-    private final static boolean DEBUG = false;
+    private final static boolean DEBUG = DecodeTask.DEBUG;
     private final static String TAG = UnrefedBitmapCache.class.getSimpleName();
 
     public UnrefedBitmapCache(final int targetSizeBytes, final float nonPooledFraction,

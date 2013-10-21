@@ -16,12 +16,13 @@
 
 package com.android.bitmap;
 
-import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BitmapRegionDecoder;
 import android.graphics.Rect;
 import android.os.AsyncTask;
+import android.os.ParcelFileDescriptor;
+import android.os.ParcelFileDescriptor.AutoCloseInputStream;
 import android.util.Log;
 
 import com.android.bitmap.util.BitmapUtils;
@@ -47,10 +48,10 @@ import java.io.InputStream;
 public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
 
     private final RequestKey mKey;
-    private final int mDestW;
-    private final int mDestH;
+    private final DecodeOptions mDecodeOpts;
     private final DecodeCallback mDecodeCallback;
     private final BitmapCache mCache;
+
     private final BitmapFactory.Options mOpts = new BitmapFactory.Options();
 
     private ReusableBitmap mInBitmap = null;
@@ -58,7 +59,7 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
     private static final boolean CROP_DURING_DECODE = true;
 
     private static final String TAG = DecodeTask.class.getSimpleName();
-    private static final boolean DEBUG = false;
+    public static final boolean DEBUG = false;
 
     /**
      * Callback interface for clients to be notified of decode state changes and completion.
@@ -83,12 +84,19 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         void onDecodeCancel(RequestKey key);
     }
 
-    public DecodeTask(RequestKey key, int w, int h, DecodeCallback view,
-            BitmapCache cache) {
-        mKey = key;
-        mDestW = w;
-        mDestH = h;
-        mDecodeCallback = view;
+    /**
+     * Create new DecodeTask.
+     *
+     * @param requestKey The request to decode, also the key to use for the cache.
+     * @param decodeOpts The decode options.
+     * @param callback   The callback to notify of decode state changes.
+     * @param cache      The cache and pool.
+     */
+    public DecodeTask(RequestKey requestKey, DecodeOptions decodeOpts,
+            DecodeCallback callback, BitmapCache cache) {
+        mKey = requestKey;
+        mDecodeOpts = decodeOpts;
+        mDecodeCallback = callback;
         mCache = cache;
     }
 
@@ -106,7 +114,7 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         }
 
         ReusableBitmap result = null;
-        AssetFileDescriptor fd = null;
+        ParcelFileDescriptor fd = null;
         InputStream in = null;
         try {
             final boolean isJellyBeanOrAbove = android.os.Build.VERSION.SDK_INT
@@ -135,7 +143,7 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
             Trace.beginSection("get bytesize");
             final long byteSize;
             if (fd != null) {
-                byteSize = fd.getLength();
+                byteSize = fd.getStatSize();
             } else {
                 byteSize = -1;
             }
@@ -148,8 +156,8 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                     // Creating an input stream from the file descriptor makes it useless
                     // afterwards.
                     Trace.beginSection("create fd and stream");
-                    final AssetFileDescriptor orientationFd = mKey.createFd();
-                    in = orientationFd.createInputStream();
+                    final ParcelFileDescriptor orientationFd = mKey.createFd();
+                    in = new AutoCloseInputStream(orientationFd);
                     Trace.endSection();
                 }
                 orientation = Exif.getOrientation(in, byteSize);
@@ -209,7 +217,8 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                 srcW = mOpts.outHeight;
                 srcH = mOpts.outWidth;
             }
-            mOpts.inSampleSize = calculateSampleSize(srcW, srcH, mDestW, mDestH);
+            mOpts.inSampleSize = calculateSampleSize(srcW, srcH, mDecodeOpts.destW,
+                    mDecodeOpts.destH, mDecodeOpts.sampleSizeStrategy);
             mOpts.inJustDecodeBounds = false;
             mOpts.inMutable = true;
             if (isJellyBeanOrAbove && orientation == 0) {
@@ -219,8 +228,9 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                                 + mCache.toDebugString());
                     }
                     Trace.beginSection("create reusable bitmap");
-                    mInBitmap = new ReusableBitmap(Bitmap.createBitmap(mDestW, mDestH,
-                            Bitmap.Config.ARGB_8888));
+                    mInBitmap = new ReusableBitmap(
+                            Bitmap.createBitmap(mDecodeOpts.destW, mDecodeOpts.destH,
+                                    Bitmap.Config.ARGB_8888));
                     Trace.endSection();
 
                     if (isCancelled()) {
@@ -359,7 +369,7 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         return result;
     }
 
-    private Bitmap decodeCropped(final AssetFileDescriptor fd, final InputStream in,
+    private Bitmap decodeCropped(final ParcelFileDescriptor fd, final InputStream in,
             final int orientation, final Rect outSrcRect) throws IOException {
         final BitmapRegionDecoder brd;
         if (fd != null) {
@@ -386,11 +396,13 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
 
         // Coordinates are orientation corrected.
         // Center the decode on the top 1/3.
-        BitmapUtils.calculateCroppedSrcRect(srcW, srcH, mDestW, mDestH, mDestH, mOpts.inSampleSize,
-                1f / 3, true /* absoluteFraction */, 1f, outSrcRect);
+        BitmapUtils.calculateCroppedSrcRect(srcW, srcH, mDecodeOpts.destW, mDecodeOpts.destH,
+                mDecodeOpts.destH, mOpts.inSampleSize, mDecodeOpts.verticalCenter,
+                true /* absoluteFraction */,
+                1f, outSrcRect);
         if (DEBUG) System.out.println("rect for this decode is: " + outSrcRect
                 + " srcW/H=" + srcW + "/" + srcH
-                + " dstW/H=" + mDestW + "/" + mDestH);
+                + " dstW/H=" + mDecodeOpts.destW + "/" + mDecodeOpts.destH);
 
         // calculateCroppedSrcRect() gave us the source rectangle "as if" the orientation has
         // been corrected. We need to decode the uncorrected source rectangle. Calculate true
@@ -425,7 +437,7 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         return in;
     }
 
-    private Bitmap decode(AssetFileDescriptor fd, InputStream in) {
+    private Bitmap decode(ParcelFileDescriptor fd, InputStream in) {
         final Bitmap result;
         if (fd != null) {
             result = BitmapFactory.decodeFileDescriptor(fd.getFileDescriptor(), null, mOpts);
@@ -435,19 +447,22 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         return result;
     }
 
-    private static int calculateSampleSize(int srcW, int srcH, int destW, int destH) {
+    private static int calculateSampleSize(int srcW, int srcH, int destW, int destH, int strategy) {
         int result;
 
         final float sz = Math.min((float) srcW / destW, (float) srcH / destH);
 
-        // round to the nearest power of two, or just truncate
-        final boolean stricter = true;
-
-        //noinspection ConstantConditions
-        if (stricter) {
-            result = (int) Math.pow(2, (int) (0.5 + (Math.log(sz) / Math.log(2))));
-        } else {
-            result = (int) sz;
+        switch (strategy) {
+            case DecodeOptions.STRATEGY_TRUNCATE:
+                result = (int) sz;
+                break;
+            case DecodeOptions.STRATEGY_ROUND_UP:
+                result = (int) Math.ceil(sz);
+                break;
+            case DecodeOptions.STRATEGY_ROUND_NEAREST:
+            default:
+                result = (int) Math.pow(2, (int) (0.5 + (Math.log(sz) / Math.log(2))));
+                break;
         }
         return Math.max(1, result);
     }
@@ -481,4 +496,63 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         }
     }
 
+    public static class DecodeOptions {
+
+        /**
+         * Round sample size to the nearest power of 2. Depending on the source and destination
+         * dimensions, we will either truncate, in which case we decode from a bigger region and
+         * crop down, or we will round up, in which case we decode from a smaller region and scale
+         * up.
+         */
+        public static final int STRATEGY_ROUND_NEAREST = 0;
+        /**
+         * Always decode from a bigger region and crop down.
+         */
+        public static final int STRATEGY_TRUNCATE = 1;
+
+        /**
+         * Always decode from a smaller region and scale up.
+         */
+        public static final int STRATEGY_ROUND_UP = 2;
+
+        /**
+         * The destination width to decode to.
+         */
+        public int destW;
+        /**
+         * The destination height to decode to.
+         */
+        public int destH;
+        /**
+         * If the destination dimensions are smaller than the source image provided by the request
+         * key, this will determine where vertically the destination rect will be cropped from.
+         * Value from 0f for top-most crop to 1f for bottom-most crop.
+         */
+        public float verticalCenter;
+        /**
+         * One of the STRATEGY constants.
+         */
+        public int sampleSizeStrategy;
+
+        public DecodeOptions(final int destW, final int destH) {
+            this(destW, destH, 0.5f, STRATEGY_ROUND_NEAREST);
+        }
+
+        /**
+         * Create new DecodeOptions.
+         * @param destW The destination width to decode to.
+         * @param destH The destination height to decode to.
+         * @param verticalCenter If the destination dimensions are smaller than the source image
+         *                       provided by the request key, this will determine where vertically
+         *                       the destination rect will be cropped from.
+         * @param sampleSizeStrategy One of the STRATEGY constants.
+         */
+        public DecodeOptions(final int destW, final int destH, final float verticalCenter,
+                final int sampleSizeStrategy) {
+            this.destW = destW;
+            this.destH = destH;
+            this.verticalCenter = verticalCenter;
+            this.sampleSizeStrategy = sampleSizeStrategy;
+        }
+    }
 }

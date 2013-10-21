@@ -32,6 +32,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.animation.LinearInterpolator;
 
+import com.android.bitmap.DecodeTask.DecodeOptions;
 import com.android.bitmap.R;
 import com.android.bitmap.BitmapCache;
 import com.android.bitmap.DecodeAggregator;
@@ -59,8 +60,10 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         Drawable.Callback, Runnable, Parallaxable, DecodeAggregator.Callback {
 
     private RequestKey mCurrKey;
+
     private ReusableBitmap mBitmap;
     private final BitmapCache mCache;
+    private final boolean mLimitDensity;
     private DecodeAggregator mDecodeAggregator;
     private DecodeTask mTask;
     private int mDecodeWidth;
@@ -80,9 +83,9 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
 
     private static final Executor EXECUTOR = SMALL_POOL_EXECUTOR;
 
-    private static final boolean LIMIT_BITMAP_DENSITY = true;
-
     private static final int MAX_BITMAP_DENSITY = DisplayMetrics.DENSITY_HIGH;
+
+    private static final float VERTICAL_CENTER = 1f / 3;
 
     private static final int LOAD_STATE_UNINITIALIZED = 0;
     private static final int LOAD_STATE_NOT_YET_LOADED = 1;
@@ -100,10 +103,11 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
     public static final String TAG = ExtendedBitmapDrawable.class.getSimpleName();
 
     public ExtendedBitmapDrawable(final Resources res, final BitmapCache cache,
-            final DecodeAggregator decodeAggregator, final Drawable placeholder,
-            final Drawable progress) {
+            final boolean limitDensity, final DecodeAggregator decodeAggregator,
+            final Drawable placeholder, final Drawable progress) {
         mDensity = res.getDisplayMetrics().density;
         mCache = cache;
+        mLimitDensity = limitDensity;
         this.mDecodeAggregator = decodeAggregator;
         mPaint.setFilterBitmap(true);
 
@@ -365,7 +369,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         }
 
         Trace.beginSection("decode");
-        if (LIMIT_BITMAP_DENSITY) {
+        if (mLimitDensity) {
             final float scale =
                     Math.min(1f, (float) MAX_BITMAP_DENSITY / DisplayMetrics.DENSITY_DEFAULT
                             / mDensity);
@@ -384,7 +388,9 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
             mTask.cancel();
         }
         setLoadState(LOAD_STATE_NOT_YET_LOADED);
-        mTask = new DecodeTask(mCurrKey, bufferW, bufferH, this, mCache);
+        final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, VERTICAL_CENTER,
+                DecodeOptions.STRATEGY_ROUND_NEAREST);
+        mTask = new DecodeTask(mCurrKey, opts, this, mCache);
         mTask.executeOnExecutor(EXECUTOR);
         Trace.endSection();
     }

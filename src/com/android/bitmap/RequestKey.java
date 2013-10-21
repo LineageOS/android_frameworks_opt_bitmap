@@ -16,8 +16,7 @@
 
 package com.android.bitmap;
 
-import android.content.res.AssetFileDescriptor;
-
+import android.os.ParcelFileDescriptor;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,10 +35,10 @@ import java.io.InputStream;
 
 public interface RequestKey {
     /**
-     * Create an {@link AssetFileDescriptor} for a local file stored on the device. This method will
-     * be called first; if it returns null, {@link #createInputStream()} will be called.
+     * Create an {@link ParcelFileDescriptor} for a local file stored on the device. This method
+     * will be called first; if it returns null, {@link #createInputStream()} will be called.
      */
-    public AssetFileDescriptor createFd() throws IOException;
+    public ParcelFileDescriptor createFd() throws IOException;
 
     /**
      * Create an {@link InputStream} for a file. This method will be called if {@link #createFd()}

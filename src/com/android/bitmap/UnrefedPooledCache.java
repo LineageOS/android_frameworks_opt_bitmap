@@ -47,7 +47,7 @@ public class UnrefedPooledCache<K, V extends Poolable> implements PooledCache<K,
     private final int mTargetSize;
     private final LruCache<K, V> mNonPooledCache;
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = DecodeTask.DEBUG;
     private static final String TAG = UnrefedPooledCache.class.getSimpleName();
 
     /**
