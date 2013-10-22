@@ -25,7 +25,7 @@ import android.widget.ListView;
 
 import com.android.bitmap.BitmapCache;
 import com.android.bitmap.UnrefedBitmapCache;
-import com.android.bitmap.util.Trace;
+import com.android.bitmap.drawable.BasicBitmapDrawable;
 
 public class MainActivity extends Activity {
     private ListView mListView;
@@ -91,9 +91,11 @@ public class MainActivity extends Activity {
                 v = (BitmapView) convertView;
             } else {
                 v = new BitmapView(MainActivity.this);
-                v.initialize(mCache);
+                final BasicBitmapDrawable drawable = new BasicBitmapDrawable(getResources(), mCache,
+                        true /* limit density */);
+                v.setDrawable(drawable);
             }
-            v.setImage(mItems[position]);
+            v.getDrawable().bind(new BitmapRequestKeyImpl(mItems[position]));
             return v;
         }
     }

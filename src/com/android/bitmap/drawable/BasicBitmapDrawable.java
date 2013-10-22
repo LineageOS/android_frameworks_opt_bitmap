@@ -34,6 +34,7 @@ import com.android.bitmap.ReusableBitmap;
 import com.android.bitmap.util.BitmapUtils;
 import com.android.bitmap.util.RectUtils;
 import com.android.bitmap.util.Trace;
+import com.android.bitmap.view.BasicImageView;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -45,18 +46,23 @@ import java.util.concurrent.TimeUnit;
  * including request creation/cancelling, and data unbinding and re-binding.
  * <p>
  * The actual bitmap decode work is handled by {@link DecodeTask}.
+ * <p>
+ * If being used with a long-lived cache (static cache, attached to the Application instead of the
+ * Activity, etc) then make sure to call {@link BasicBitmapDrawable#unbind()} at the appropriate
+ * times so the cache has accurate unref counts. The {@link BasicImageView} class has been created
+ * to do the appropriate unbind operation when the view is detached from the window.
  */
 public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCallback,
         Drawable.Callback {
     protected static Rect sRect;
 
     protected RequestKey mCurrKey;
-    protected ReusableBitmap mBitmap;
     protected final Paint mPaint = new Paint();
 
     private final BitmapCache mCache;
     private final boolean mLimitDensity;
     private final float mDensity;
+    private ReusableBitmap mBitmap;
     private DecodeTask mTask;
     private int mDecodeWidth;
     private int mDecodeHeight;
@@ -228,6 +234,10 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
 
     @Override
     public void onDecodeCancel(final RequestKey key) { }
+
+    protected ReusableBitmap getBitmap() {
+        return mBitmap;
+    }
 
     private void setBitmap(ReusableBitmap bmp) {
         if (mBitmap != null && mBitmap != bmp) {
