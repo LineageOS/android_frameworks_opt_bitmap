@@ -50,7 +50,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
         Drawable.Callback {
 
     protected RequestKey mCurrKey;
-    private ReusableBitmap mBitmap;
+    protected ReusableBitmap mBitmap;
     private final BitmapCache mCache;
     private final boolean mLimitDensity;
     private DecodeTask mTask;
