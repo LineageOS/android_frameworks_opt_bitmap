@@ -48,17 +48,19 @@ import java.util.concurrent.TimeUnit;
  */
 public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCallback,
         Drawable.Callback {
+    protected static Rect sRect;
 
     protected RequestKey mCurrKey;
     protected ReusableBitmap mBitmap;
+    protected final Paint mPaint = new Paint();
+
     private final BitmapCache mCache;
     private final boolean mLimitDensity;
+    private final float mDensity;
     private DecodeTask mTask;
     private int mDecodeWidth;
-
     private int mDecodeHeight;
 
-    private static final String TAG = BasicBitmapDrawable.class.getSimpleName();
     // based on framework CL:I015d77
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
     private static final int CORE_POOL_SIZE = CPU_COUNT + 1;
@@ -67,17 +69,12 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
     private static final Executor SMALL_POOL_EXECUTOR = new ThreadPoolExecutor(
             CORE_POOL_SIZE, MAXIMUM_POOL_SIZE, 1, TimeUnit.SECONDS,
             new LinkedBlockingQueue<Runnable>(128), new NamedThreadFactory("decode"));
-
     private static final Executor EXECUTOR = SMALL_POOL_EXECUTOR;
 
     private static final int MAX_BITMAP_DENSITY = DisplayMetrics.DENSITY_HIGH;
-
     private static final float VERTICAL_CENTER = 1f / 2;
-    private final float mDensity;
-    private final Paint mPaint = new Paint();
 
-    private final Rect mSrcRect = new Rect();
-
+    private static final String TAG = BasicBitmapDrawable.class.getSimpleName();
     private static final boolean DEBUG = DecodeTask.DEBUG;
 
     public BasicBitmapDrawable(final Resources res, final BitmapCache cache,
@@ -86,6 +83,12 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
         mCache = cache;
         mLimitDensity = limitDensity;
         mPaint.setFilterBitmap(true);
+        mPaint.setAntiAlias(true);
+        mPaint.setDither(true);
+
+        if (sRect == null) {
+            sRect = new Rect();
+        }
     }
 
     public RequestKey getKey() {
@@ -164,7 +167,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
                     bounds.width(), bounds.height(),
                     bounds.height(), Integer.MAX_VALUE,
                     VERTICAL_CENTER, false /* absoluteFraction */,
-                    1, mSrcRect);
+                    1, sRect);
 
             final int orientation = mBitmap.getOrientation();
             // calculateCroppedSrcRect() gave us the source rectangle "as if" the orientation has
@@ -172,7 +175,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
             // coordinates.
             RectUtils.rotateRectForOrientation(orientation,
                     new Rect(0, 0, mBitmap.getLogicalWidth(), mBitmap.getLogicalHeight()),
-                    mSrcRect);
+                    sRect);
 
             // We may need to rotate the canvas, so we also have to rotate the bounds.
             final Rect rotatedBounds = new Rect(bounds);
@@ -181,7 +184,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
             // Rotate the canvas.
             canvas.save();
             canvas.rotate(orientation, bounds.centerX(), bounds.centerY());
-            canvas.drawBitmap(mBitmap.bmp, mSrcRect, rotatedBounds, mPaint);
+            canvas.drawBitmap(mBitmap.bmp, sRect, rotatedBounds, mPaint);
             canvas.restore();
         }
     }
