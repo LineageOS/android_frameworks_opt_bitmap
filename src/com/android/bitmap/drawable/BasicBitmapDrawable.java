@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
 public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCallback,
         Drawable.Callback {
 
-    protect RequestKey mCurrKey;
+    protected RequestKey mCurrKey;
     private ReusableBitmap mBitmap;
     private final BitmapCache mCache;
     private final boolean mLimitDensity;
