@@ -16,7 +16,6 @@
 
 package com.example.bitmapsample;
 
-import android.content.res.AssetFileDescriptor;
 import android.os.ParcelFileDescriptor;
 
 import com.android.bitmap.RequestKey;
