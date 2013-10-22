@@ -17,6 +17,7 @@
 package com.example.bitmapsample;
 
 import android.content.res.AssetFileDescriptor;
+import android.os.ParcelFileDescriptor;
 
 import com.android.bitmap.RequestKey;
 
@@ -65,7 +66,7 @@ public class BitmapRequestKeyImpl implements RequestKey {
     }
 
     @Override
-    public AssetFileDescriptor createFd() throws IOException {
+    public ParcelFileDescriptor createFd() throws IOException {
         return null;
     }
 
