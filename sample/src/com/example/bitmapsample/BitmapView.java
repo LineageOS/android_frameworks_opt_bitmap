@@ -19,9 +19,10 @@ package com.example.bitmapsample;
 import android.content.Context;
 import android.util.AttributeSet;
 
-import com.android.bitmap.view.BasicImageView;
+import com.android.bitmap.drawable.BasicBitmapDrawable;
+import com.android.bitmap.view.BitmapDrawableImageView;
 
-public class BitmapView extends BasicImageView {
+public class BitmapView extends BitmapDrawableImageView {
     private float mDensity;
 
     public BitmapView(Context c) {
@@ -40,6 +41,6 @@ public class BitmapView extends BasicImageView {
 
     @Override
     protected void onSizeChanged(final int w, final int h, int oldw, int oldh) {
-        getDrawable().setDecodeDimensions(w, h);
+        getBasicBitmapDrawable().setDecodeDimensions(w, h);
     }
 }

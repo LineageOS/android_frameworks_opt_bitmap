@@ -93,9 +93,9 @@ public class MainActivity extends Activity {
                 v = new BitmapView(MainActivity.this);
                 final BasicBitmapDrawable drawable = new BasicBitmapDrawable(getResources(), mCache,
                         true /* limit density */);
-                v.setDrawable(drawable);
+                v.setBasicBitmapDrawable(drawable);
             }
-            v.getDrawable().bind(new BitmapRequestKeyImpl(mItems[position]));
+            v.getBasicBitmapDrawable().bind(new BitmapRequestKeyImpl(mItems[position]));
             return v;
         }
     }

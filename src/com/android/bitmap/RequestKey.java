@@ -23,32 +23,111 @@ import java.io.InputStream;
 
 /**
  * The decode task uses this class to get input to decode. You must implement at least one of
- * {@link #createFd()} or {@link #createInputStream()}. {@link DecodeTask} will prioritize
- * {@link #createFd()} before falling back to {@link #createInputStream()}.
- * <p>
- * Objects of this type will also serve as cache keys to fetch cached data for {@link PooledCache}s,
- * so they must implement {@link #equals(Object)} and {@link #hashCode()}.
+ * {@link #createFileDescriptorFactoryAsync(RequestKey, Callback)} or {@link #createInputStream()}.
+ * {@link DecodeTask} will prioritize
+ * {@link #createFileDescriptorFactoryAsync(RequestKey, Callback)} before falling back to
+ * {@link #createInputStream()}.
+ *
  * <p>
  * Clients of this interface must also implement {@link #equals(Object)} and {@link #hashCode()} as
  * this object will be used as a cache key.
+ *
+ * <p>
+ * The following is a high level view of the interactions between RequestKey and the rest of the
+ * system.
+ *
+ *       BasicBitmapDrawable
+ *           UI Thread
+ *              ++
+ *       bind() ||            Background Thread
+ *              |+-------------------->+
+ *              || createFDFasync()   ||
+ *              ||                    || Download from url
+ *              ||                    || Cache on disk
+ *              ||                    ||
+ *              ||                    vv
+ *              |<--------------------+x
+ *              ||        FDFcreated()
+ *              ||
+ *              ||
+ *              ||                DecodeTask
+ *              ||             AsyncTask Thread
+ *              |+-------------------->+
+ *              || new().execute()    ||
+ *              ||                    || Decode from FDF
+ *              ||                    || or createInputStream()
+ *              ||                    ||
+ *              ||                    vv
+ *              |<--------------------+x
+ *              ||  onDecodeComplete()
+ *              vv
+ * invalidate() xx
  */
-
 public interface RequestKey {
-    /**
-     * Create an {@link ParcelFileDescriptor} for a local file stored on the device. This method
-     * will be called first; if it returns null, {@link #createInputStream()} will be called.
-     */
-    public ParcelFileDescriptor createFd() throws IOException;
 
     /**
-     * Create an {@link InputStream} for a file. This method will be called if {@link #createFd()}
-     * returns null.
+     * Create an {@link FileDescriptorFactory} for a local file stored on the device and pass it to
+     * the given callback. This method will be called first; if it returns null,
+     * {@link #createInputStream()} will be called.
+     *
+     * This method must be called from the UI thread.
+     *
+     * @param key      The key to create a FileDescriptorFactory for. This key will be passed to the
+     *                 callback so it can check whether the key has changed.
+     * @param callback The callback to notify once the FileDescriptorFactory has been created. Do
+     *                 not invoke the callback directly from this method. Instead, create a handler
+     *                 and post a Runnable.
+     *
+     * @return If the client will attempt to create a FileDescriptorFactory, return a Cancelable
+     * object to cancel the asynchronous task. If the client wants to create an InputStream instead,
+     * return null. The callback must be notified if and only if the client returns a Cancelable
+     * object and not null.
+     */
+    public Cancelable createFileDescriptorFactoryAsync(RequestKey key, Callback callback);
+
+    /**
+     * Create an {@link InputStream} for the source. This method will be called if
+     * {@link #createFileDescriptorFactoryAsync(RequestKey, Callback)} returns null.
+     *
+     * This method can be called from any thread.
      */
     public InputStream createInputStream() throws IOException;
 
     /**
      * Return true if the image source may have be oriented in either portrait or landscape, and
      * will need to be automatically re-oriented based on accompanying Exif metadata.
+     *
+     * This method can be called from any thread.
      */
     public boolean hasOrientationExif() throws IOException;
+
+    /**
+     * Callback for creating the {@link FileDescriptorFactory} asynchronously.
+     */
+    public interface Callback {
+
+        /**
+         * Notifies that the {@link FileDescriptorFactory} has been created. This must be called on
+         * the UI thread.
+         * @param key The key that the FileDescriptorFactory was created for. The callback should
+         *            check that the key has not changed.
+         * @param factory The FileDescriptorFactory to decode from.
+         */
+        void fileDescriptorFactoryCreated(RequestKey key, FileDescriptorFactory factory);
+    }
+
+    public interface FileDescriptorFactory {
+        ParcelFileDescriptor createFileDescriptor();
+    }
+
+    /**
+     * Interface for a background task that is cancelable.
+     */
+    public interface Cancelable {
+
+        /**
+         * Cancel the background task. This must be called on the UI thread.
+         */
+        void cancel();
+    }
 }

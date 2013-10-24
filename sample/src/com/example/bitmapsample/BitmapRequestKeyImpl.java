@@ -16,8 +16,6 @@
 
 package com.example.bitmapsample;
 
-import android.os.ParcelFileDescriptor;
-
 import com.android.bitmap.RequestKey;
 
 import java.io.IOException;
@@ -65,7 +63,8 @@ public class BitmapRequestKeyImpl implements RequestKey {
     }
 
     @Override
-    public ParcelFileDescriptor createFd() throws IOException {
+    public Cancelable createFileDescriptorFactoryAsync(final RequestKey key,
+            final Callback callback) {
         return null;
     }
 

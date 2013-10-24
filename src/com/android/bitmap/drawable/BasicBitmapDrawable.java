@@ -27,14 +27,16 @@ import android.util.Log;
 
 import com.android.bitmap.BitmapCache;
 import com.android.bitmap.DecodeTask;
+import com.android.bitmap.DecodeTask.DecodeCallback;
 import com.android.bitmap.DecodeTask.DecodeOptions;
 import com.android.bitmap.NamedThreadFactory;
 import com.android.bitmap.RequestKey;
+import com.android.bitmap.RequestKey.Cancelable;
+import com.android.bitmap.RequestKey.FileDescriptorFactory;
 import com.android.bitmap.ReusableBitmap;
 import com.android.bitmap.util.BitmapUtils;
 import com.android.bitmap.util.RectUtils;
 import com.android.bitmap.util.Trace;
-import com.android.bitmap.view.BasicImageView;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -49,11 +51,12 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * If being used with a long-lived cache (static cache, attached to the Application instead of the
  * Activity, etc) then make sure to call {@link BasicBitmapDrawable#unbind()} at the appropriate
- * times so the cache has accurate unref counts. The {@link BasicImageView} class has been created
- * to do the appropriate unbind operation when the view is detached from the window.
+ * times so the cache has accurate unref counts. The
+ * {@link com.android.bitmap.view.BitmapDrawableImageView} class has been created to do the
+ * appropriate unbind operation when the view is detached from the window.
  */
-public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCallback,
-        Drawable.Callback {
+public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
+        Drawable.Callback, RequestKey.Callback {
     protected static Rect sRect;
 
     protected RequestKey mCurrKey;
@@ -64,6 +67,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
     private final float mDensity;
     private ReusableBitmap mBitmap;
     private DecodeTask mTask;
+    private Cancelable mCreateFileDescriptorFactoryTask;
     private int mDecodeWidth;
     private int mDecodeHeight;
 
@@ -107,7 +111,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
     public void setDecodeDimensions(int w, int h) {
         mDecodeWidth = w;
         mDecodeHeight = h;
-        decode();
+        loadFileDescriptorFactory();
     }
 
     public void unbind() {
@@ -136,6 +140,10 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
             mTask.cancel();
             mTask = null;
         }
+        if (mCreateFileDescriptorFactoryTask != null) {
+            mCreateFileDescriptorFactoryTask.cancel();
+            mCreateFileDescriptorFactoryTask = null;
+        }
 
         if (key == null) {
             invalidateSelf();
@@ -151,7 +159,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
                 Log.d(TAG, String.format("CACHE HIT key=%s", mCurrKey));
             }
         } else {
-            decode();
+            loadFileDescriptorFactory();
             if (DEBUG) {
                 Log.d(TAG, String.format(
                         "CACHE MISS key=%s\ncache=%s", mCurrKey, mCache.toDebugString()));
@@ -247,15 +255,41 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
         invalidateSelf();
     }
 
-    private void decode() {
-        final int bufferW;
-        final int bufferH;
-
+    private void loadFileDescriptorFactory() {
         if (mCurrKey == null) {
             return;
         }
+        if (mDecodeWidth == 0 || mDecodeHeight == 0) {
+            return;
+        }
 
+        // Create file descriptor if request supports it.
+        mCreateFileDescriptorFactoryTask = mCurrKey
+                .createFileDescriptorFactoryAsync(mCurrKey, this);
+        if (mCreateFileDescriptorFactoryTask == null) {
+            // Use input stream if request does not.
+            decode(null);
+        }
+    }
+
+    @Override
+    public void fileDescriptorFactoryCreated(final RequestKey key,
+            final FileDescriptorFactory factory) {
+        if (mCreateFileDescriptorFactoryTask == null) {
+            // Cancelled.
+            return;
+        }
+        mCreateFileDescriptorFactoryTask = null;
+
+        if (key.equals(mCurrKey)) {
+            decode(factory);
+        }
+    }
+
+    private void decode(final FileDescriptorFactory factory) {
         Trace.beginSection("decode");
+        final int bufferW;
+        final int bufferH;
         if (mLimitDensity) {
             final float scale =
                     Math.min(1f, (float) MAX_BITMAP_DENSITY / DisplayMetrics.DENSITY_DEFAULT
@@ -276,7 +310,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeTask.DecodeCa
         }
         final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, VERTICAL_CENTER,
                 DecodeOptions.STRATEGY_ROUND_NEAREST);
-        mTask = new DecodeTask(mCurrKey, opts, this, mCache);
+        mTask = new DecodeTask(mCurrKey, opts, factory, this, mCache);
         mTask.executeOnExecutor(EXECUTOR);
         Trace.endSection();
     }

@@ -25,6 +25,7 @@ import android.os.ParcelFileDescriptor;
 import android.os.ParcelFileDescriptor.AutoCloseInputStream;
 import android.util.Log;
 
+import com.android.bitmap.RequestKey.FileDescriptorFactory;
 import com.android.bitmap.util.BitmapUtils;
 import com.android.bitmap.util.Exif;
 import com.android.bitmap.util.RectUtils;
@@ -49,9 +50,9 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
 
     private final RequestKey mKey;
     private final DecodeOptions mDecodeOpts;
+    private final FileDescriptorFactory mFactory;
     private final DecodeCallback mDecodeCallback;
     private final BitmapCache mCache;
-
     private final BitmapFactory.Options mOpts = new BitmapFactory.Options();
 
     private ReusableBitmap mInBitmap = null;
@@ -85,17 +86,20 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
     }
 
     /**
-     * Create new DecodeTask.
-     *
-     * @param requestKey The request to decode, also the key to use for the cache.
-     * @param decodeOpts The decode options.
-     * @param callback   The callback to notify of decode state changes.
-     * @param cache      The cache and pool.
-     */
+   * Create new DecodeTask.
+   *
+   * @param requestKey The request to decode, also the key to use for the cache.
+   * @param decodeOpts The decode options.
+   * @param factory    The factory to obtain file descriptors to decode from. If this factory is
+     *                 null, then we will decode from requestKey.createInputStream().
+   * @param callback   The callback to notify of decode state changes.
+   * @param cache      The cache and pool.
+   */
     public DecodeTask(RequestKey requestKey, DecodeOptions decodeOpts,
-            DecodeCallback callback, BitmapCache cache) {
+            FileDescriptorFactory factory, DecodeCallback callback, BitmapCache cache) {
         mKey = requestKey;
         mDecodeOpts = decodeOpts;
+        mFactory = factory;
         mDecodeCallback = callback;
         mCache = cache;
     }
@@ -131,14 +135,15 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
             }
 
             Trace.beginSection("create fd and stream");
-            fd = mKey.createFd();
-            Trace.endSection();
-            if (fd == null) {
+            if (mFactory != null) {
+                fd = mFactory.createFileDescriptor();
+            } else {
                 in = reset(in);
                 if (in == null) {
                     return null;
                 }
             }
+            Trace.endSection();
 
             Trace.beginSection("get bytesize");
             final long byteSize;
@@ -155,8 +160,8 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                 if (fd != null) {
                     // Creating an input stream from the file descriptor makes it useless
                     // afterwards.
-                    Trace.beginSection("create fd and stream");
-                    final ParcelFileDescriptor orientationFd = mKey.createFd();
+                    Trace.beginSection("create orientation fd and stream");
+                    final ParcelFileDescriptor orientationFd = mFactory.createFileDescriptor();
                     in = new AutoCloseInputStream(orientationFd);
                     Trace.endSection();
                 }

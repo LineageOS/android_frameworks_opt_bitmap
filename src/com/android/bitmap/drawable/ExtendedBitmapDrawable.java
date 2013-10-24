@@ -32,11 +32,11 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.animation.LinearInterpolator;
 
-import com.android.bitmap.DecodeTask.DecodeOptions;
-import com.android.bitmap.R;
 import com.android.bitmap.BitmapCache;
 import com.android.bitmap.DecodeAggregator;
 import com.android.bitmap.DecodeTask;
+import com.android.bitmap.DecodeTask.DecodeOptions;
+import com.android.bitmap.R;
 import com.android.bitmap.RequestKey;
 import com.android.bitmap.ReusableBitmap;
 import com.android.bitmap.util.BitmapUtils;
@@ -390,7 +390,8 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         setLoadState(LOAD_STATE_NOT_YET_LOADED);
         final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, VERTICAL_CENTER,
                 DecodeOptions.STRATEGY_ROUND_NEAREST);
-        mTask = new DecodeTask(mCurrKey, opts, this, mCache);
+        // TODO: file is null because we expect this class to extend BasicBitmapDrawable soon.
+        mTask = new DecodeTask(mCurrKey, opts, null /* file */, this, mCache);
         mTask.executeOnExecutor(EXECUTOR);
         Trace.endSection();
     }
