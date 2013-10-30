@@ -17,6 +17,8 @@
 package com.example.bitmapsample;
 
 import android.app.Activity;
+import android.content.res.Resources;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,19 +26,33 @@ import android.widget.BaseAdapter;
 import android.widget.ListView;
 
 import com.android.bitmap.BitmapCache;
+import com.android.bitmap.DecodeAggregator;
 import com.android.bitmap.UnrefedBitmapCache;
-import com.android.bitmap.drawable.BasicBitmapDrawable;
+import com.android.bitmap.drawable.ExtendedBitmapDrawable;
 
 public class MainActivity extends Activity {
-    private ListView mListView;
 
-    private static final int TARGET_CACHE_SIZE_BYTES = 5 * 1024 * 1024;
+    private ListView mListView;
     private final BitmapCache mCache = new UnrefedBitmapCache(TARGET_CACHE_SIZE_BYTES, 0.1f, 0);
+    private final DecodeAggregator mDecodeAggregator = new DecodeAggregator();
+
+    private static Drawable PLACEHOLDER;
+    private static Drawable PROGRESS;
+
+    private static final float NORMAL_PARALLAX_MULTIPLIER = 1.5f;
+    private static final int TARGET_CACHE_SIZE_BYTES = 5 * 1024 * 1024;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        if (PLACEHOLDER == null) {
+            Resources res = getResources();
+            PLACEHOLDER = res.getDrawable(R.drawable.ic_placeholder);
+            PROGRESS = res.getDrawable(R.drawable.progress);
+        }
+
         mListView = (ListView) findViewById(R.id.list);
         mListView.setAdapter(new MyAdapter());
     }
@@ -91,9 +107,13 @@ public class MainActivity extends Activity {
                 v = (BitmapView) convertView;
             } else {
                 v = new BitmapView(MainActivity.this);
-                final BasicBitmapDrawable drawable = new BasicBitmapDrawable(getResources(), mCache,
-                        true /* limit density */);
+                final ExtendedBitmapDrawable drawable = new ExtendedBitmapDrawable(getResources(),
+                        mCache, true /* limit density */, mDecodeAggregator, PLACEHOLDER, PROGRESS);
+                drawable.setParallaxSpeedMultiplier(NORMAL_PARALLAX_MULTIPLIER);
+
                 v.setBasicBitmapDrawable(drawable);
+                v.setListView(mListView);
+                v.setParallaxSpeedMultiplier(NORMAL_PARALLAX_MULTIPLIER);
             }
             v.getBasicBitmapDrawable().bind(new BitmapRequestKeyImpl(mItems[position]));
             return v;

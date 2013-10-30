@@ -134,16 +134,20 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                 }
             }
 
-            Trace.beginSection("create fd and stream");
             if (mFactory != null) {
+                Trace.beginSection("create fd");
                 fd = mFactory.createFileDescriptor();
+                Trace.endSection();
             } else {
                 in = reset(in);
                 if (in == null) {
                     return null;
                 }
             }
-            Trace.endSection();
+
+            if (isCancelled()) {
+                return null;
+            }
 
             Trace.beginSection("get bytesize");
             final long byteSize;
@@ -196,6 +200,9 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
             if (fd == null) {
                 in = reset(in);
                 if (in == null) {
+                    return null;
+                }
+                if (isCancelled()) {
                     return null;
                 }
             }
@@ -286,7 +293,11 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                 if (in == null) {
                     return null;
                 }
+                if (isCancelled()) {
+                    return null;
+                }
             }
+
 
             Bitmap decodeResult = null;
             final Rect srcRect = new Rect(); // Not orientation corrected. True coordinates.

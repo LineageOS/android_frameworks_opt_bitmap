@@ -17,13 +17,19 @@
 package com.example.bitmapsample;
 
 import android.content.Context;
+import android.graphics.Canvas;
 import android.util.AttributeSet;
+import android.widget.ListView;
 
 import com.android.bitmap.drawable.BasicBitmapDrawable;
+import com.android.bitmap.drawable.ExtendedBitmapDrawable;
 import com.android.bitmap.view.BitmapDrawableImageView;
 
 public class BitmapView extends BitmapDrawableImageView {
-    private float mDensity;
+    private final float mDensity;
+
+    private ListView mListView;
+    private float mParallaxSpeedMultiplier;
 
     public BitmapView(Context c) {
         this(c, null);
@@ -41,6 +47,24 @@ public class BitmapView extends BitmapDrawableImageView {
 
     @Override
     protected void onSizeChanged(final int w, final int h, int oldw, int oldh) {
-        getBasicBitmapDrawable().setDecodeDimensions(w, h);
+        ExtendedBitmapDrawable drawable = (ExtendedBitmapDrawable) getBasicBitmapDrawable();
+        drawable.setDecodeDimensions(w, (int) (h * mParallaxSpeedMultiplier));
+    }
+
+    public void setListView(final ListView listView) {
+        mListView = listView;
+    }
+
+    @Override
+    protected void onDraw(final Canvas canvas) {
+        ExtendedBitmapDrawable drawable = (ExtendedBitmapDrawable) getBasicBitmapDrawable();
+        float fraction = (float) getBottom() / (mListView.getHeight() + getHeight());
+        drawable.setParallaxFraction(fraction);
+
+        super.onDraw(canvas);
+    }
+
+    public void setParallaxSpeedMultiplier(final float parallaxSpeedMultiplier) {
+        mParallaxSpeedMultiplier = parallaxSpeedMultiplier;
     }
 }

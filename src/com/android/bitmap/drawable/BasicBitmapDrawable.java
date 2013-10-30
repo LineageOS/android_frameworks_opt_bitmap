@@ -57,12 +57,15 @@ import java.util.concurrent.TimeUnit;
  */
 public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         Drawable.Callback, RequestKey.Callback {
+
     protected static Rect sRect;
 
     protected RequestKey mCurrKey;
-    protected final Paint mPaint = new Paint();
+    protected RequestKey mPrevKey;
 
+    protected final Paint mPaint = new Paint();
     private final BitmapCache mCache;
+
     private final boolean mLimitDensity;
     private final float mDensity;
     private ReusableBitmap mBitmap;
@@ -83,6 +86,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
 
     private static final int MAX_BITMAP_DENSITY = DisplayMetrics.DENSITY_HIGH;
     private static final float VERTICAL_CENTER = 1f / 2;
+    private static final float NO_MULTIPLIER = 1f;
 
     private static final String TAG = BasicBitmapDrawable.class.getSimpleName();
     private static final boolean DEBUG = DecodeTask.DEBUG;
@@ -105,6 +109,10 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         return mCurrKey;
     }
 
+    protected ReusableBitmap getBitmap() {
+        return mBitmap;
+    }
+
     /**
      * Set the dimensions to decode into.
      */
@@ -122,7 +130,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         setImage(key);
     }
 
-    private void setImage(final RequestKey key) {
+    protected void setImage(final RequestKey key) {
         if (mCurrKey != null && mCurrKey.equals(key)) {
             return;
         }
@@ -134,6 +142,8 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
             mBitmap = null;
         }
         Trace.endSection();
+
+        mPrevKey = mCurrKey;
         mCurrKey = key;
 
         if (mTask != null) {
@@ -168,6 +178,79 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         Trace.endSection();
     }
 
+    protected void setBitmap(ReusableBitmap bmp) {
+        if (mBitmap != null && mBitmap != bmp) {
+            mBitmap.releaseReference();
+        }
+        mBitmap = bmp;
+        invalidateSelf();
+    }
+
+    protected void loadFileDescriptorFactory() {
+        if (mCurrKey == null || mDecodeWidth == 0 || mDecodeHeight == 0) {
+            return;
+        }
+
+        // Create file descriptor if request supports it.
+        mCreateFileDescriptorFactoryTask = mCurrKey
+                .createFileDescriptorFactoryAsync(mCurrKey, this);
+        if (mCreateFileDescriptorFactoryTask == null) {
+            // Use input stream if request does not.
+            decode(null);
+        }
+    }
+
+    @Override
+    public void fileDescriptorFactoryCreated(final RequestKey key,
+            final FileDescriptorFactory factory) {
+        if (mCreateFileDescriptorFactoryTask == null) {
+            // Cancelled.
+            return;
+        }
+        mCreateFileDescriptorFactoryTask = null;
+
+        if (key.equals(mCurrKey)) {
+            decode(factory);
+        }
+    }
+
+    protected void decode(final FileDescriptorFactory factory) {
+        Trace.beginSection("decode");
+        final int bufferW;
+        final int bufferH;
+        if (mLimitDensity) {
+            final float scale =
+                    Math.min(1f, (float) MAX_BITMAP_DENSITY / DisplayMetrics.DENSITY_DEFAULT
+                            / mDensity);
+            bufferW = (int) (mDecodeWidth * scale);
+            bufferH = (int) (mDecodeHeight * scale);
+        } else {
+            bufferW = mDecodeWidth;
+            bufferH = mDecodeHeight;
+        }
+
+        if (mTask != null) {
+            mTask.cancel();
+        }
+        final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, getDecodeVerticalCenter(),
+                DecodeOptions.STRATEGY_ROUND_NEAREST);
+        mTask = new DecodeTask(mCurrKey, opts, factory, this, mCache);
+        mTask.executeOnExecutor(EXECUTOR);
+        Trace.endSection();
+    }
+
+    protected float getDrawVerticalCenter() {
+        return VERTICAL_CENTER;
+    }
+
+    protected float getDrawVerticalOffsetMultiplier() {
+        return NO_MULTIPLIER;
+    }
+
+    protected float getDecodeVerticalCenter() {
+        return VERTICAL_CENTER;
+    }
+
     @Override
     public void draw(final Canvas canvas) {
         final Rect bounds = getBounds();
@@ -180,8 +263,8 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
                     mBitmap.getLogicalWidth(), mBitmap.getLogicalHeight(),
                     bounds.width(), bounds.height(),
                     bounds.height(), Integer.MAX_VALUE,
-                    VERTICAL_CENTER, false /* absoluteFraction */,
-                    1, sRect);
+                    getDrawVerticalCenter(), false /* absoluteFraction */,
+                    getDrawVerticalOffsetMultiplier(), sRect);
 
             final int orientation = mBitmap.getOrientation();
             // calculateCroppedSrcRect() gave us the source rectangle "as if" the orientation has
@@ -242,78 +325,6 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
 
     @Override
     public void onDecodeCancel(final RequestKey key) { }
-
-    protected ReusableBitmap getBitmap() {
-        return mBitmap;
-    }
-
-    private void setBitmap(ReusableBitmap bmp) {
-        if (mBitmap != null && mBitmap != bmp) {
-            mBitmap.releaseReference();
-        }
-        mBitmap = bmp;
-        invalidateSelf();
-    }
-
-    private void loadFileDescriptorFactory() {
-        if (mCurrKey == null) {
-            return;
-        }
-        if (mDecodeWidth == 0 || mDecodeHeight == 0) {
-            return;
-        }
-
-        // Create file descriptor if request supports it.
-        mCreateFileDescriptorFactoryTask = mCurrKey
-                .createFileDescriptorFactoryAsync(mCurrKey, this);
-        if (mCreateFileDescriptorFactoryTask == null) {
-            // Use input stream if request does not.
-            decode(null);
-        }
-    }
-
-    @Override
-    public void fileDescriptorFactoryCreated(final RequestKey key,
-            final FileDescriptorFactory factory) {
-        if (mCreateFileDescriptorFactoryTask == null) {
-            // Cancelled.
-            return;
-        }
-        mCreateFileDescriptorFactoryTask = null;
-
-        if (key.equals(mCurrKey)) {
-            decode(factory);
-        }
-    }
-
-    private void decode(final FileDescriptorFactory factory) {
-        Trace.beginSection("decode");
-        final int bufferW;
-        final int bufferH;
-        if (mLimitDensity) {
-            final float scale =
-                    Math.min(1f, (float) MAX_BITMAP_DENSITY / DisplayMetrics.DENSITY_DEFAULT
-                            / mDensity);
-            bufferW = (int) (mDecodeWidth * scale);
-            bufferH = (int) (mDecodeHeight * scale);
-        } else {
-            bufferW = mDecodeWidth;
-            bufferH = mDecodeHeight;
-        }
-
-        if (bufferW == 0 || bufferH == 0) {
-            Trace.endSection();
-            return;
-        }
-        if (mTask != null) {
-            mTask.cancel();
-        }
-        final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, VERTICAL_CENTER,
-                DecodeOptions.STRATEGY_ROUND_NEAREST);
-        mTask = new DecodeTask(mCurrKey, opts, factory, this, mCache);
-        mTask.executeOnExecutor(EXECUTOR);
-        Trace.endSection();
-    }
 
     @Override
     public void invalidateDrawable(Drawable who) {

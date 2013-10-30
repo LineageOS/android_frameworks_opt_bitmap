@@ -27,6 +27,8 @@ public class BitmapRequestKeyImpl implements RequestKey {
     public final String mUriString;
     public final URL mUrl;
 
+    private boolean mSlept;
+
     public BitmapRequestKeyImpl(String uriString) {
         mUriString = uriString;
         URL url = null;
@@ -36,6 +38,7 @@ public class BitmapRequestKeyImpl implements RequestKey {
             e.printStackTrace();
         }
         mUrl = url;
+        mSlept = false;
     }
 
     @Override
@@ -70,6 +73,20 @@ public class BitmapRequestKeyImpl implements RequestKey {
 
     @Override
     public InputStream createInputStream() throws IOException {
+        // Artificially sleep for (deterministically) random amount of time.
+        if (!mSlept) {
+            // Character difference between shortest and longest uri.
+            final long spread = 26;
+            // Maximum amount of time to sleep.
+            final long max = 2;
+            final long duration = (long) ((float) (mUriString.length() % spread) / spread * max
+                    * 1000);
+            try {
+                Thread.sleep(duration);
+            } catch (InterruptedException ignored) {
+            }
+            mSlept = true;
+        }
         return mUrl.openStream();
     }
 

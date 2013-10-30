@@ -23,30 +23,20 @@ import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
-import android.graphics.Paint;
-import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.animation.LinearInterpolator;
 
 import com.android.bitmap.BitmapCache;
 import com.android.bitmap.DecodeAggregator;
 import com.android.bitmap.DecodeTask;
-import com.android.bitmap.DecodeTask.DecodeOptions;
 import com.android.bitmap.R;
 import com.android.bitmap.RequestKey;
+import com.android.bitmap.RequestKey.FileDescriptorFactory;
 import com.android.bitmap.ReusableBitmap;
-import com.android.bitmap.util.BitmapUtils;
-import com.android.bitmap.util.RectUtils;
 import com.android.bitmap.util.Trace;
-
-import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This class encapsulates all functionality needed to display a single image bitmap,
@@ -56,47 +46,27 @@ import java.util.concurrent.TimeUnit;
  * The actual bitmap decode work is handled by {@link DecodeTask}.
  * TODO: have this class extend from BasicBitmapDrawable
  */
-public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.DecodeCallback,
-        Drawable.Callback, Runnable, Parallaxable, DecodeAggregator.Callback {
+public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
+    Runnable, Parallaxable, DecodeAggregator.Callback {
 
-    private RequestKey mCurrKey;
-
-    private ReusableBitmap mBitmap;
-    private final BitmapCache mCache;
-    private final boolean mLimitDensity;
+    // Ordered display.
     private DecodeAggregator mDecodeAggregator;
-    private DecodeTask mTask;
-    private int mDecodeWidth;
-    private int mDecodeHeight;
-    private int mLoadState = LOAD_STATE_UNINITIALIZED;
+    
+    // Parallax.
     private float mParallaxFraction = 0.5f;
     private float mParallaxSpeedMultiplier;
+    private static final float DECODE_VERTICAL_CENTER = 1f / 3;
 
-    // each attachment gets its own placeholder and progress indicator, to be shown, hidden,
-    // and animated based on Drawable#setVisible() changes, which are in turn driven by
-    // #setLoadState().
-    private Placeholder mPlaceholder;
-    private Progress mProgress;
-
-    private static final Executor SMALL_POOL_EXECUTOR = new ThreadPoolExecutor(4, 4,
-            1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-
-    private static final Executor EXECUTOR = SMALL_POOL_EXECUTOR;
-
-    private static final int MAX_BITMAP_DENSITY = DisplayMetrics.DENSITY_HIGH;
-
-    private static final float VERTICAL_CENTER = 1f / 3;
-
+    // Placeholder and progress.
     private static final int LOAD_STATE_UNINITIALIZED = 0;
     private static final int LOAD_STATE_NOT_YET_LOADED = 1;
     private static final int LOAD_STATE_LOADING = 2;
     private static final int LOAD_STATE_LOADED = 3;
     private static final int LOAD_STATE_FAILED = 4;
-
-    private final float mDensity;
+    private int mLoadState = LOAD_STATE_UNINITIALIZED;
+    private Placeholder mPlaceholder;
+    private Progress mProgress;
     private int mProgressDelayMs;
-    private final Paint mPaint = new Paint();
-    private final Rect mSrcRect = new Rect();
     private final Handler mHandler = new Handler();
 
     public static final boolean DEBUG = false;
@@ -105,12 +75,12 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
     public ExtendedBitmapDrawable(final Resources res, final BitmapCache cache,
             final boolean limitDensity, final DecodeAggregator decodeAggregator,
             final Drawable placeholder, final Drawable progress) {
-        mDensity = res.getDisplayMetrics().density;
-        mCache = cache;
-        mLimitDensity = limitDensity;
-        this.mDecodeAggregator = decodeAggregator;
-        mPaint.setFilterBitmap(true);
+        super(res, cache, limitDensity);
 
+        // Ordered display.
+        this.mDecodeAggregator = decodeAggregator;
+
+        // Placeholder and progress.
         final int fadeOutDurationMs = res.getInteger(R.integer.bitmap_fade_animation_duration);
         final int tileColor = res.getColor(R.color.bitmap_placeholder_background_color);
         mProgressDelayMs = res.getInteger(R.integer.bitmap_progress_animation_delay);
@@ -126,57 +96,33 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         mProgress.setCallback(this);
     }
 
-    public RequestKey getKey() {
-        return mCurrKey;
-    }
-
-    /**
-     * Set the dimensions to which to decode into. For a parallax effect, ensure the height is
-     * larger than the destination of the bitmap.
-     * TODO: test parallax
-     */
-    public void setDecodeDimensions(int w, int h) {
-        mDecodeWidth = w;
-        mDecodeHeight = h;
-        decode();
+    @Override
+    public void setParallaxFraction(float fraction) {
+        mParallaxFraction = fraction;
+        invalidateSelf();
     }
 
     public void setParallaxSpeedMultiplier(final float parallaxSpeedMultiplier) {
         mParallaxSpeedMultiplier = parallaxSpeedMultiplier;
+        invalidateSelf();
     }
 
+    /**
+     * This sets the drawable to the failed state, which remove all animations from the placeholder.
+     * This is different from unbinding to the uninitialized state, where we expect animations.
+     */
     public void showStaticPlaceholder() {
         setLoadState(LOAD_STATE_FAILED);
     }
 
-    public void unbind() {
-        setImage(null);
-    }
-
-    public void bind(RequestKey key) {
-        setImage(key);
-    }
-
-    private void setImage(final RequestKey key) {
+    @Override
+    protected void setImage(final RequestKey key) {
         if (mCurrKey != null && mCurrKey.equals(key)) {
             return;
         }
 
-        Trace.beginSection("set image");
-        Trace.beginSection("release reference");
-        if (mBitmap != null) {
-            mBitmap.releaseReference();
-            mBitmap = null;
-        }
-        Trace.endSection();
         if (mCurrKey != null && mDecodeAggregator != null) {
             mDecodeAggregator.forget(mCurrKey);
-        }
-        mCurrKey = key;
-
-        if (mTask != null) {
-            mTask.cancel();
-            mTask = null;
         }
 
         mHandler.removeCallbacks(this);
@@ -184,33 +130,48 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         // this allows the initial transition to be specially instantaneous, so e.g. a cache hit
         // doesn't unnecessarily trigger a fade-in
         setLoadState(LOAD_STATE_UNINITIALIZED);
-
         if (key == null) {
-            invalidateSelf();
-            Trace.endSection();
-            return;
+            setLoadState(LOAD_STATE_FAILED);
         }
 
-        // find cached entry here and skip decode if found.
-        final ReusableBitmap cached = mCache.get(key, true /* incrementRefCount */);
-        if (cached != null) {
-            setBitmap(cached);
-            if (DEBUG) {
-                Log.d(TAG, String.format("CACHE HIT key=%s", mCurrKey));
-            }
-        } else {
-            decode();
-            if (DEBUG) {
-                Log.d(TAG, String.format(
-                        "CACHE MISS key=%s\ncache=%s", mCurrKey, mCache.toDebugString()));
-            }
-        }
-        Trace.endSection();
+        super.setImage(key);
     }
 
     @Override
-    public void setParallaxFraction(float fraction) {
-        mParallaxFraction = fraction;
+    protected void setBitmap(ReusableBitmap bmp) {
+        setLoadState((bmp != null) ? LOAD_STATE_LOADED : LOAD_STATE_FAILED);
+
+        super.setBitmap(bmp);
+    }
+
+    @Override
+    protected void decode(final FileDescriptorFactory factory) {
+        boolean executeStateChange = shouldExecuteStateChange();
+        if (executeStateChange) {
+            setLoadState(LOAD_STATE_NOT_YET_LOADED);
+        }
+
+        super.decode(factory);
+    }
+
+    protected boolean shouldExecuteStateChange() {
+        // TODO: AttachmentDrawable should override this method to match prev and curr request keys.
+        return /* opts.stateChanges */ true;
+    }
+
+    @Override
+    public float getDrawVerticalCenter() {
+        return mParallaxFraction;
+    }
+
+    @Override
+    protected float getDrawVerticalOffsetMultiplier() {
+        return mParallaxSpeedMultiplier;
+    }
+
+    @Override
+    protected float getDecodeVerticalCenter() {
+        return DECODE_VERTICAL_CENTER;
     }
 
     @Override
@@ -220,32 +181,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
             return;
         }
 
-        if (mBitmap != null && mBitmap.bmp != null) {
-            BitmapUtils.calculateCroppedSrcRect(
-                    mBitmap.getLogicalWidth(), mBitmap.getLogicalHeight(),
-                    bounds.width(), bounds.height(),
-                    bounds.height(), Integer.MAX_VALUE,
-                    mParallaxFraction, false /* absoluteFraction */,
-                    mParallaxSpeedMultiplier, mSrcRect);
-
-            final int orientation = mBitmap.getOrientation();
-            // calculateCroppedSrcRect() gave us the source rectangle "as if" the orientation has
-            // been corrected. We need to decode the uncorrected source rectangle. Calculate true
-            // coordinates.
-            RectUtils.rotateRectForOrientation(orientation,
-                    new Rect(0, 0, mBitmap.getLogicalWidth(), mBitmap.getLogicalHeight()),
-                    mSrcRect);
-
-            // We may need to rotate the canvas, so we also have to rotate the bounds.
-            final Rect rotatedBounds = new Rect(bounds);
-            RectUtils.rotateRect(orientation, bounds.centerX(), bounds.centerY(), rotatedBounds);
-
-            // Rotate the canvas.
-            canvas.save();
-            canvas.rotate(orientation, bounds.centerX(), bounds.centerY());
-            canvas.drawBitmap(mBitmap.bmp, mSrcRect, rotatedBounds, mPaint);
-            canvas.restore();
-        }
+        super.draw(canvas);
 
         // Draw the two possible overlay layers in reverse-priority order.
         // (each layer will no-op the draw when appropriate)
@@ -257,7 +193,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
     @Override
     public void setAlpha(int alpha) {
         final int old = mPaint.getAlpha();
-        mPaint.setAlpha(alpha);
+        super.setAlpha(alpha);
         mPlaceholder.setAlpha(alpha);
         mProgress.setAlpha(alpha);
         if (alpha != old) {
@@ -267,16 +203,10 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
 
     @Override
     public void setColorFilter(ColorFilter cf) {
-        mPaint.setColorFilter(cf);
+        super.setColorFilter(cf);
         mPlaceholder.setColorFilter(cf);
         mProgress.setColorFilter(cf);
         invalidateSelf();
-    }
-
-    @Override
-    public int getOpacity() {
-        return (mBitmap != null && (mBitmap.bmp.hasAlpha() || mPaint.getAlpha() < 255)) ?
-                PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
     }
 
     @Override
@@ -294,6 +224,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         } else {
             onBecomeFirstExpected(key);
         }
+        super.onDecodeBegin(key);
     }
 
     @Override
@@ -319,7 +250,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
             mDecodeAggregator.execute(key, new Runnable() {
                 @Override
                 public void run() {
-                    onDecodeCompleteImpl(key, result);
+                    ExtendedBitmapDrawable.super.onDecodeComplete(key, result);
                 }
 
                 @Override
@@ -328,19 +259,7 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
                 }
             });
         } else {
-            onDecodeCompleteImpl(key, result);
-        }
-    }
-
-    private void onDecodeCompleteImpl(final RequestKey key, final ReusableBitmap result) {
-        if (key.equals(mCurrKey)) {
-            setBitmap(result);
-        } else {
-            // if the requests don't match (i.e. this request is stale), decrement the
-            // ref count to allow the bitmap to be pooled
-            if (result != null) {
-                result.releaseReference();
-            }
+            super.onDecodeComplete(key, result);
         }
     }
 
@@ -349,53 +268,14 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
         if (mDecodeAggregator != null) {
             mDecodeAggregator.forget(key);
         }
+        super.onDecodeCancel(key);
     }
 
-    private void setBitmap(ReusableBitmap bmp) {
-        if (mBitmap != null && mBitmap != bmp) {
-            mBitmap.releaseReference();
-        }
-        mBitmap = bmp;
-        setLoadState((bmp != null) ? LOAD_STATE_LOADED : LOAD_STATE_FAILED);
-        invalidateSelf();
-    }
-
-    private void decode() {
-        final int bufferW;
-        final int bufferH;
-
-        if (mCurrKey == null) {
-            return;
-        }
-
-        Trace.beginSection("decode");
-        if (mLimitDensity) {
-            final float scale =
-                    Math.min(1f, (float) MAX_BITMAP_DENSITY / DisplayMetrics.DENSITY_DEFAULT
-                            / mDensity);
-            bufferW = (int) (mDecodeWidth * scale);
-            bufferH = (int) (mDecodeHeight * scale);
-        } else {
-            bufferW = mDecodeWidth;
-            bufferH = mDecodeHeight;
-        }
-
-        if (bufferW == 0 || bufferH == 0) {
-            Trace.endSection();
-            return;
-        }
-        if (mTask != null) {
-            mTask.cancel();
-        }
-        setLoadState(LOAD_STATE_NOT_YET_LOADED);
-        final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, VERTICAL_CENTER,
-                DecodeOptions.STRATEGY_ROUND_NEAREST);
-        // TODO: file is null because we expect this class to extend BasicBitmapDrawable soon.
-        mTask = new DecodeTask(mCurrKey, opts, null /* file */, this, mCache);
-        mTask.executeOnExecutor(EXECUTOR);
-        Trace.endSection();
-    }
-
+    /**
+     * Each attachment gets its own placeholder and progress indicator, to be shown, hidden,
+     * and animated based on Drawable#setVisible() changes, which are in turn driven by
+     * setLoadState().
+     */
     private void setLoadState(int loadState) {
         if (DEBUG) {
             Log.v(TAG, String.format("IN setLoadState. old=%s new=%s key=%s this=%s",
@@ -446,21 +326,6 @@ public class ExtendedBitmapDrawable extends Drawable implements DecodeTask.Decod
             Log.v(TAG, String.format("OUT stateful setLoadState. new=%s placeholder=%s progress=%s",
                     loadState, placeholderVisible, progressVisible));
         }
-    }
-
-    @Override
-    public void invalidateDrawable(Drawable who) {
-        invalidateSelf();
-    }
-
-    @Override
-    public void scheduleDrawable(Drawable who, Runnable what, long when) {
-        scheduleSelf(what, when);
-    }
-
-    @Override
-    public void unscheduleDrawable(Drawable who, Runnable what) {
-        unscheduleSelf(what);
     }
 
     private static class Placeholder extends TileDrawable {
