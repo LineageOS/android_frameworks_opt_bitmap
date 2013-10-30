@@ -15,14 +15,28 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_MODULE := com-example-bitmapcache
+bitmap_dir := ..//res
+res_dirs := $(bitmap_dir) res
 
-LOCAL_SDK_VERSION := 16
+LOCAL_PACKAGE_NAME := bitmapcache-sample
+
+LOCAL_STATIC_JAVA_LIBRARIES += android-opt-bitmap
+
+LOCAL_SDK_VERSION := 18
 
 LOCAL_SRC_FILES := \
      $(call all-java-files-under, src) \
      $(call all-logtags-files-under, src)
 
-LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+LOCAL_RESOURCE_DIR := $(addprefix $(LOCAL_PATH)/, $(res_dirs)) $(LOCAL_PATH)/res
+LOCAL_AAPT_FLAGS := --auto-add-overlay
+LOCAL_AAPT_FLAGS += --extra-packages com.android.bitmap
 
-include $(BUILD_STATIC_JAVA_LIBRARY)
+LOCAL_PROGUARD_FLAG_FILES := proguard-config.pro
+
+include $(BUILD_PACKAGE)
+
+##################################################
+# Build all sub-directories
+
+include $(call all-makefiles-under,$(LOCAL_PATH))

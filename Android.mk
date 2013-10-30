@@ -26,3 +26,9 @@ LOCAL_SRC_FILES := \
 LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
 
 include $(BUILD_STATIC_JAVA_LIBRARY)
+
+
+##################################################
+# Build all sub-directories
+
+include $(call all-makefiles-under,$(LOCAL_PATH))
