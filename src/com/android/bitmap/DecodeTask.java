@@ -222,8 +222,29 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                 srcW = mOpts.outHeight;
                 srcH = mOpts.outWidth;
             }
-            mOpts.inSampleSize = calculateSampleSize(srcW, srcH, mDecodeOpts.destW,
-                    mDecodeOpts.destH, mDecodeOpts.sampleSizeStrategy);
+
+            // BEGIN MANUAL-INLINE calculateSampleSize()
+
+            final float sz = Math
+                    .min((float) srcW / mDecodeOpts.destW, (float) srcH / mDecodeOpts.destH);
+
+            final int sampleSize;
+            switch (mDecodeOpts.sampleSizeStrategy) {
+                case DecodeOptions.STRATEGY_TRUNCATE:
+                    sampleSize = (int) sz;
+                    break;
+                case DecodeOptions.STRATEGY_ROUND_UP:
+                    sampleSize = (int) Math.ceil(sz);
+                    break;
+                case DecodeOptions.STRATEGY_ROUND_NEAREST:
+                default:
+                    sampleSize = (int) Math.pow(2, (int) (0.5 + (Math.log(sz) / Math.log(2))));
+                    break;
+            }
+            mOpts.inSampleSize = Math.max(1, sampleSize);
+
+            // END MANUAL-INLINE calculateSampleSize()
+
             mOpts.inJustDecodeBounds = false;
             mOpts.inMutable = true;
             if (isJellyBeanOrAbove && orientation == 0) {
@@ -272,7 +293,48 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
             if (CROP_DURING_DECODE) {
                 try {
                     Trace.beginSection("decodeCropped" + mOpts.inSampleSize);
-                    decodeResult = decodeCropped(fd, in, orientation, srcRect);
+
+                    // BEGIN MANUAL INLINE decodeCropped()
+
+                    final BitmapRegionDecoder brd;
+                    if (fd != null) {
+                        brd = BitmapRegionDecoder
+                                .newInstance(fd.getFileDescriptor(), true /* shareable */);
+                    } else {
+                        brd = BitmapRegionDecoder.newInstance(in, true /* shareable */);
+                    }
+
+                    final Bitmap bitmap;
+                    if (isCancelled()) {
+                        bitmap = null;
+                    } else {
+                        // We want to call calculateCroppedSrcRect() on the source rectangle "as
+                        // if" the orientation has been corrected.
+                        // Center the decode on the top 1/3.
+                        BitmapUtils.calculateCroppedSrcRect(srcW, srcH, mDecodeOpts.destW,
+                                mDecodeOpts.destH,
+                                mDecodeOpts.destH, mOpts.inSampleSize, mDecodeOpts.verticalCenter,
+                                true /* absoluteFraction */,
+                                1f, srcRect);
+                        if (DEBUG) {
+                            System.out.println("rect for this decode is: " + srcRect
+                                    + " srcW/H=" + srcW + "/" + srcH
+                                    + " dstW/H=" + mDecodeOpts.destW + "/" + mDecodeOpts.destH);
+                        }
+
+                        // calculateCroppedSrcRect() gave us the source rectangle "as if" the
+                        // orientation has been corrected. We need to decode the uncorrected
+                        // source rectangle. Calculate true coordinates.
+                        RectUtils.rotateRectForOrientation(orientation, new Rect(0, 0, srcW, srcH),
+                                srcRect);
+
+                        bitmap = brd.decodeRegion(srcRect, mOpts);
+                    }
+                    brd.recycle();
+
+                    // END MANUAL INLINE decodeCropped()
+
+                    decodeResult = bitmap;
                 } catch (IOException e) {
                     // fall through to below and try again with the non-cropping decoder
                     e.printStackTrace();
@@ -374,51 +436,6 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         return result;
     }
 
-    private Bitmap decodeCropped(final ParcelFileDescriptor fd, final InputStream in,
-            final int orientation, final Rect outSrcRect) throws IOException {
-        final BitmapRegionDecoder brd;
-        if (fd != null) {
-            brd = BitmapRegionDecoder.newInstance(fd.getFileDescriptor(), true /* shareable */);
-        } else {
-            brd = BitmapRegionDecoder.newInstance(in, true /* shareable */);
-        }
-        if (isCancelled()) {
-            brd.recycle();
-            return null;
-        }
-
-        // We want to call calculateCroppedSrcRect() on the source rectangle "as if" the
-        // orientation has been corrected.
-        final int srcW, srcH; //Orientation corrected.
-        final boolean isNotRotatedOr180 = orientation == 0 || orientation == 180;
-        if (isNotRotatedOr180) {
-            srcW = mOpts.outWidth;
-            srcH = mOpts.outHeight;
-        } else {
-            srcW = mOpts.outHeight;
-            srcH = mOpts.outWidth;
-        }
-
-        // Coordinates are orientation corrected.
-        // Center the decode on the top 1/3.
-        BitmapUtils.calculateCroppedSrcRect(srcW, srcH, mDecodeOpts.destW, mDecodeOpts.destH,
-                mDecodeOpts.destH, mOpts.inSampleSize, mDecodeOpts.verticalCenter,
-                true /* absoluteFraction */,
-                1f, outSrcRect);
-        if (DEBUG) System.out.println("rect for this decode is: " + outSrcRect
-                + " srcW/H=" + srcW + "/" + srcH
-                + " dstW/H=" + mDecodeOpts.destW + "/" + mDecodeOpts.destH);
-
-        // calculateCroppedSrcRect() gave us the source rectangle "as if" the orientation has
-        // been corrected. We need to decode the uncorrected source rectangle. Calculate true
-        // coordinates.
-        RectUtils.rotateRectForOrientation(orientation, new Rect(0, 0, srcW, srcH), outSrcRect);
-
-        final Bitmap result = brd.decodeRegion(outSrcRect, mOpts);
-        brd.recycle();
-        return result;
-    }
-
     /**
      * Return an input stream that can be read from the beginning using the most efficient way,
      * given an input stream that may or may not support reset(), or given null.
@@ -450,26 +467,6 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
             result = BitmapFactory.decodeStream(in, null, mOpts);
         }
         return result;
-    }
-
-    private static int calculateSampleSize(int srcW, int srcH, int destW, int destH, int strategy) {
-        int result;
-
-        final float sz = Math.min((float) srcW / destW, (float) srcH / destH);
-
-        switch (strategy) {
-            case DecodeOptions.STRATEGY_TRUNCATE:
-                result = (int) sz;
-                break;
-            case DecodeOptions.STRATEGY_ROUND_UP:
-                result = (int) Math.ceil(sz);
-                break;
-            case DecodeOptions.STRATEGY_ROUND_NEAREST:
-            default:
-                result = (int) Math.pow(2, (int) (0.5 + (Math.log(sz) / Math.log(2))));
-                break;
-        }
-        return Math.max(1, result);
     }
 
     public void cancel() {
