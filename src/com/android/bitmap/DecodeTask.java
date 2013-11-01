@@ -509,6 +509,9 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         }
     }
 
+    /**
+     * Parameters to pass to the DecodeTask.
+     */
     public static class DecodeOptions {
 
         /**

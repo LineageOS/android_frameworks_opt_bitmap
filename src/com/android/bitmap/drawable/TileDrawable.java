@@ -24,6 +24,8 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 
+import com.android.bitmap.drawable.ExtendedBitmapDrawable.ExtendedOptions;
+
 /**
  * A drawable that wraps another drawable and places it in the center of this space. This drawable
  * allows a background color for the "tile", and has a fade-out transition when
@@ -31,6 +33,7 @@ import android.graphics.drawable.Drawable;
  */
 public class TileDrawable extends Drawable implements Drawable.Callback {
 
+    private final ExtendedOptions mOpts;
     private final Paint mPaint = new Paint();
     private final Drawable mInner;
     private final int mInnerWidth;
@@ -38,13 +41,15 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
 
     protected final ValueAnimator mFadeOutAnimator;
 
-    public TileDrawable(Drawable inner, int innerWidth, int innerHeight,
-            int backgroundColor, int fadeOutDurationMs) {
-        mInner = inner.mutate();
+    public TileDrawable(Drawable inner, int innerWidth, int innerHeight, int fadeOutDurationMs,
+            ExtendedOptions opts) {
+        mOpts = opts;
+        mInner = inner != null ? inner.mutate() : null;
         mInnerWidth = innerWidth;
         mInnerHeight = innerHeight;
-        mPaint.setColor(backgroundColor);
-        mInner.setCallback(this);
+        if (inner != null) {
+            mInner.setCallback(this);
+        }
 
         mFadeOutAnimator = ValueAnimator.ofInt(255, 0)
                 .setDuration(fadeOutDurationMs);
@@ -67,6 +72,10 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
     protected void onBoundsChange(Rect bounds) {
         super.onBoundsChange(bounds);
 
+        if (mInner == null) {
+            return;
+        }
+
         if (bounds.isEmpty()) {
             mInner.setBounds(0, 0, 0, 0);
         } else {
@@ -81,8 +90,11 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
         if (!isVisible() && mPaint.getAlpha() == 0) {
             return;
         }
+        final int alpha = mPaint.getAlpha();
+        mPaint.setColor(mOpts.backgroundColor);
+        mPaint.setAlpha(alpha);
         canvas.drawRect(getBounds(), mPaint);
-        mInner.draw(canvas);
+        if (mInner != null) mInner.draw(canvas);
     }
 
     @Override
@@ -98,7 +110,7 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
     @Override
     public void setColorFilter(ColorFilter cf) {
         mPaint.setColorFilter(cf);
-        mInner.setColorFilter(cf);
+        if (mInner != null) mInner.setColorFilter(cf);
     }
 
     @Override
@@ -116,7 +128,7 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
 
     @Override
     public boolean setVisible(boolean visible, boolean restart) {
-        mInner.setVisible(visible, restart);
+        if (mInner != null) mInner.setVisible(visible, restart);
         final boolean changed = super.setVisible(visible, restart);
         if (changed) {
             if (isVisible()) {
@@ -136,14 +148,18 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
 
     @Override
     protected boolean onLevelChange(int level) {
-        return mInner.setLevel(level);
+        if (mInner != null)
+            return mInner.setLevel(level);
+        else {
+            return super.onLevelChange(level);
+        }
     }
 
     /**
      * Changes the alpha on just the inner wrapped drawable.
      */
     public void setInnerAlpha(int alpha) {
-        mInner.setAlpha(alpha);
+        if (mInner != null) mInner.setAlpha(alpha);
     }
 
     @Override

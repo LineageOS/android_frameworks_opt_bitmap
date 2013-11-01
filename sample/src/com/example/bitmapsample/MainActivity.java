@@ -18,6 +18,7 @@ package com.example.bitmapsample;
 
 import android.app.Activity;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.View;
@@ -29,11 +30,12 @@ import com.android.bitmap.BitmapCache;
 import com.android.bitmap.DecodeAggregator;
 import com.android.bitmap.UnrefedBitmapCache;
 import com.android.bitmap.drawable.ExtendedBitmapDrawable;
+import com.android.bitmap.drawable.ExtendedBitmapDrawable.ExtendedOptions;
 
 public class MainActivity extends Activity {
 
     private ListView mListView;
-    private final BitmapCache mCache = new UnrefedBitmapCache(TARGET_CACHE_SIZE_BYTES, 0.1f, 0);
+    private final BitmapCache mCache = new UnrefedBitmapCache(TARGET_CACHE_SIZE_BYTES, 0, 0);
     private final DecodeAggregator mDecodeAggregator = new DecodeAggregator();
 
     private static Drawable PLACEHOLDER;
@@ -107,9 +109,14 @@ public class MainActivity extends Activity {
                 v = (BitmapView) convertView;
             } else {
                 v = new BitmapView(MainActivity.this);
+                ExtendedOptions opts = new ExtendedOptions(
+                        ExtendedOptions.FEATURE_ORDERED_DISPLAY | ExtendedOptions.FEATURE_PARALLAX
+                                | ExtendedOptions.FEATURE_STATE_CHANGES, PLACEHOLDER, PROGRESS);
+                opts.decodeAggregator = mDecodeAggregator;
+                opts.parallaxSpeedMultiplier = NORMAL_PARALLAX_MULTIPLIER;
+                opts.backgroundColor = Color.LTGRAY;
                 final ExtendedBitmapDrawable drawable = new ExtendedBitmapDrawable(getResources(),
-                        mCache, true /* limit density */, mDecodeAggregator, PLACEHOLDER, PROGRESS);
-                drawable.setParallaxSpeedMultiplier(NORMAL_PARALLAX_MULTIPLIER);
+                        mCache, true /* limit density */, opts);
 
                 v.setBasicBitmapDrawable(drawable);
                 v.setListView(mListView);

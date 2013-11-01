@@ -49,15 +49,13 @@ import com.android.bitmap.util.Trace;
 public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     Runnable, Parallaxable, DecodeAggregator.Callback {
 
-    // Ordered display.
-    private DecodeAggregator mDecodeAggregator;
-    
-    // Parallax.
-    private float mParallaxFraction = 0.5f;
-    private float mParallaxSpeedMultiplier;
-    private static final float DECODE_VERTICAL_CENTER = 1f / 3;
+    private final ExtendedOptions mOpts;
 
-    // Placeholder and progress.
+    // Parallax.
+    private static final float DECODE_VERTICAL_CENTER = 1f / 3;
+    private float mParallaxFraction = 1f / 2;
+
+    // State changes.
     private static final int LOAD_STATE_UNINITIALIZED = 0;
     private static final int LOAD_STATE_NOT_YET_LOADED = 1;
     private static final int LOAD_STATE_LOADING = 2;
@@ -73,27 +71,32 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     public static final String TAG = ExtendedBitmapDrawable.class.getSimpleName();
 
     public ExtendedBitmapDrawable(final Resources res, final BitmapCache cache,
-            final boolean limitDensity, final DecodeAggregator decodeAggregator,
-            final Drawable placeholder, final Drawable progress) {
+            final boolean limitDensity, final ExtendedOptions opts) {
         super(res, cache, limitDensity);
 
-        // Ordered display.
-        this.mDecodeAggregator = decodeAggregator;
+        opts.validate();
+        mOpts = opts;
 
         // Placeholder and progress.
-        final int fadeOutDurationMs = res.getInteger(R.integer.bitmap_fade_animation_duration);
-        final int tileColor = res.getColor(R.color.bitmap_placeholder_background_color);
-        mProgressDelayMs = res.getInteger(R.integer.bitmap_progress_animation_delay);
+        if ((opts.features & ExtendedOptions.FEATURE_STATE_CHANGES) != 0) {
+            final int fadeOutDurationMs = res.getInteger(R.integer.bitmap_fade_animation_duration);
+            mProgressDelayMs = res.getInteger(R.integer.bitmap_progress_animation_delay);
 
-        int placeholderSize = res.getDimensionPixelSize(R.dimen.placeholder_size);
-        mPlaceholder = new Placeholder(placeholder.getConstantState().newDrawable(res), res,
-                placeholderSize, placeholderSize, fadeOutDurationMs, tileColor);
-        mPlaceholder.setCallback(this);
+            // Placeholder is not optional because of backgroundColor.
+            int placeholderSize = res.getDimensionPixelSize(R.dimen.placeholder_size);
+            mPlaceholder = new Placeholder(
+                    opts.placeholder != null ? opts.placeholder.getConstantState().newDrawable(res)
+                            : null, res, placeholderSize, placeholderSize, fadeOutDurationMs, opts);
+            mPlaceholder.setCallback(this);
 
-        int progressBarSize = res.getDimensionPixelSize(R.dimen.progress_bar_size);
-        mProgress = new Progress(progress.getConstantState().newDrawable(res), res,
-                progressBarSize, progressBarSize, fadeOutDurationMs, tileColor);
-        mProgress.setCallback(this);
+            // Progress bar is optional.
+            if (opts.progressBar != null) {
+                int progressBarSize = res.getDimensionPixelSize(R.dimen.progress_bar_size);
+                mProgress = new Progress(opts.progressBar.getConstantState().newDrawable(res), res,
+                        progressBarSize, progressBarSize, fadeOutDurationMs, opts);
+                mProgress.setCallback(this);
+            }
+        }
     }
 
     @Override
@@ -102,9 +105,12 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         invalidateSelf();
     }
 
-    public void setParallaxSpeedMultiplier(final float parallaxSpeedMultiplier) {
-        mParallaxSpeedMultiplier = parallaxSpeedMultiplier;
-        invalidateSelf();
+    /**
+     * Get the ExtendedOptions used to instantiate this ExtendedBitmapDrawable. Any changes made to
+     * the parameters inside the options will take effect immediately.
+     */
+    public ExtendedOptions getExtendedOptions() {
+        return mOpts;
     }
 
     /**
@@ -121,8 +127,8 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
             return;
         }
 
-        if (mCurrKey != null && mDecodeAggregator != null) {
-            mDecodeAggregator.forget(mCurrKey);
+        if (mCurrKey != null && getDecodeAggregator() != null) {
+            getDecodeAggregator().forget(mCurrKey);
         }
 
         mHandler.removeCallbacks(this);
@@ -166,7 +172,7 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
 
     @Override
     protected float getDrawVerticalOffsetMultiplier() {
-        return mParallaxSpeedMultiplier;
+        return mOpts.parallaxSpeedMultiplier;
     }
 
     @Override
@@ -174,28 +180,45 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         return DECODE_VERTICAL_CENTER;
     }
 
+    private DecodeAggregator getDecodeAggregator() {
+        return mOpts.decodeAggregator;
+    }
+
+    /**
+     * Instead of overriding this method, subclasses should override {@link #onDraw(Canvas)}.
+     *
+     * The reason for this is that we need the placeholder and progress bar to be drawn over our
+     * content. Those two drawables fade out, giving the impression that our content is fading in.
+     */
     @Override
-    public void draw(final Canvas canvas) {
+    public final void draw(final Canvas canvas) {
         final Rect bounds = getBounds();
         if (bounds.isEmpty()) {
             return;
         }
 
-        super.draw(canvas);
+        onDraw(canvas);
 
         // Draw the two possible overlay layers in reverse-priority order.
         // (each layer will no-op the draw when appropriate)
         // This ordering means cross-fade transitions are just fade-outs of each layer.
-        mProgress.draw(canvas);
-        mPlaceholder.draw(canvas);
+        if (mProgress != null) mProgress.draw(canvas);
+        if (mPlaceholder != null) mPlaceholder.draw(canvas);
+    }
+
+    /**
+     * Overriding this method to add your own custom drawing.
+     */
+    protected void onDraw(final Canvas canvas) {
+        super.draw(canvas);
     }
 
     @Override
     public void setAlpha(int alpha) {
         final int old = mPaint.getAlpha();
         super.setAlpha(alpha);
-        mPlaceholder.setAlpha(alpha);
-        mProgress.setAlpha(alpha);
+        if (mPlaceholder != null) mPlaceholder.setAlpha(alpha);
+        if (mProgress != null) mProgress.setAlpha(alpha);
         if (alpha != old) {
             invalidateSelf();
         }
@@ -204,23 +227,22 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     @Override
     public void setColorFilter(ColorFilter cf) {
         super.setColorFilter(cf);
-        mPlaceholder.setColorFilter(cf);
-        mProgress.setColorFilter(cf);
+        if (mPlaceholder != null) mPlaceholder.setColorFilter(cf);
+        if (mProgress != null) mProgress.setColorFilter(cf);
         invalidateSelf();
     }
 
     @Override
     protected void onBoundsChange(Rect bounds) {
         super.onBoundsChange(bounds);
-
-        mPlaceholder.setBounds(bounds);
-        mProgress.setBounds(bounds);
+        if (mPlaceholder != null) mPlaceholder.setBounds(bounds);
+        if (mProgress != null) mProgress.setBounds(bounds);
     }
 
     @Override
     public void onDecodeBegin(final RequestKey key) {
-        if (mDecodeAggregator != null) {
-            mDecodeAggregator.expect(key, this);
+        if (getDecodeAggregator() != null) {
+            getDecodeAggregator().expect(key, this);
         } else {
             onBecomeFirstExpected(key);
         }
@@ -246,8 +268,8 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
 
     @Override
     public void onDecodeComplete(final RequestKey key, final ReusableBitmap result) {
-        if (mDecodeAggregator != null) {
-            mDecodeAggregator.execute(key, new Runnable() {
+        if (getDecodeAggregator() != null) {
+            getDecodeAggregator().execute(key, new Runnable() {
                 @Override
                 public void run() {
                     ExtendedBitmapDrawable.super.onDecodeComplete(key, result);
@@ -265,8 +287,8 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
 
     @Override
     public void onDecodeCancel(final RequestKey key) {
-        if (mDecodeAggregator != null) {
-            mDecodeAggregator.forget(key);
+        if (getDecodeAggregator() != null) {
+            getDecodeAggregator().forget(key);
         }
         super.onDecodeCancel(key);
     }
@@ -294,26 +316,34 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
             // UNINITIALIZED will not have a fancy transition. This allows list item binds to
             // cached data to take immediate effect without unnecessary whizzery.
             case LOAD_STATE_UNINITIALIZED:
-                mPlaceholder.reset();
-                mProgress.reset();
+                if (mPlaceholder != null) mPlaceholder.reset();
+                if (mProgress != null) mProgress.reset();
                 break;
             case LOAD_STATE_NOT_YET_LOADED:
-                mPlaceholder.setPulseEnabled(true);
-                mPlaceholder.setVisible(true);
-                mProgress.setVisible(false);
+                if (mPlaceholder != null) {
+                    mPlaceholder.setPulseEnabled(true);
+                    mPlaceholder.setVisible(true);
+                }
+                if (mProgress != null) mProgress.setVisible(false);
                 break;
             case LOAD_STATE_LOADING:
-                mPlaceholder.setVisible(false);
-                mProgress.setVisible(true);
+                if (mProgress == null) {
+                    // Stay in same visual state as LOAD_STATE_NOT_YET_LOADED.
+                    break;
+                }
+                if (mPlaceholder != null) mPlaceholder.setVisible(false);
+                if (mProgress != null) mProgress.setVisible(true);
                 break;
             case LOAD_STATE_LOADED:
-                mPlaceholder.setVisible(false);
-                mProgress.setVisible(false);
+                if (mPlaceholder != null) mPlaceholder.setVisible(false);
+                if (mProgress != null) mProgress.setVisible(false);
                 break;
             case LOAD_STATE_FAILED:
-                mPlaceholder.setPulseEnabled(false);
-                mPlaceholder.setVisible(true);
-                mProgress.setVisible(false);
+                if (mPlaceholder != null) {
+                    mPlaceholder.setPulseEnabled(false);
+                    mPlaceholder.setVisible(true);
+                }
+                if (mProgress != null) mProgress.setVisible(false);
                 break;
         }
         Trace.endSection();
@@ -334,10 +364,10 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         private boolean mPulseEnabled = true;
         private float mPulseAlphaFraction = 1f;
 
-        public Placeholder(Drawable placeholder, Resources res,
-                int placeholderWidth, int placeholderHeight, int fadeOutDurationMs,
-                int tileColor) {
-            super(placeholder, placeholderWidth, placeholderHeight, tileColor, fadeOutDurationMs);
+        public Placeholder(Drawable placeholder, Resources res, int placeholderWidth,
+                int placeholderHeight, int fadeOutDurationMs, ExtendedOptions opts) {
+            super(placeholder, placeholderWidth, placeholderHeight, fadeOutDurationMs, opts);
+
             mPulseAnimator = ValueAnimator.ofInt(55, 255)
                     .setDuration(res.getInteger(R.integer.bitmap_placeholder_animation_duration));
             mPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
@@ -405,8 +435,8 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
 
         public Progress(Drawable progress, Resources res,
                 int progressBarWidth, int progressBarHeight, int fadeOutDurationMs,
-                int tileColor) {
-            super(progress, progressBarWidth, progressBarHeight, tileColor, fadeOutDurationMs);
+                ExtendedOptions opts) {
+            super(progress, progressBarWidth, progressBarHeight, fadeOutDurationMs, opts);
 
             mRotateAnimator = ValueAnimator.ofInt(0, 10000)
                     .setDuration(res.getInteger(R.integer.bitmap_progress_animation_duration));
@@ -446,6 +476,193 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
             }
             return changed;
         }
+    }
 
+    /**
+     * This class contains the features a client can specify, and arguments to those features.
+     * Clients can later retrieve the ExtendedOptions from an ExtendedBitmapDrawable and change the
+     * parameters, which will be reflected immediately.
+     */
+    public static class ExtendedOptions {
+
+        /**
+         * Summary:
+         * This feature enables you to draw decoded bitmap in order on the screen, to give the
+         * visual effect of a single decode thread.
+         *
+         * <p/>
+         * Explanation:
+         * Since DecodeTasks are asynchronous, multiple tasks may finish decoding at different
+         * times. To have a smooth user experience, provide a shared {@link DecodeAggregator} to all
+         * the ExtendedBitmapDrawables, and the decode aggregator will hold finished decodes so they
+         * come back in order.
+         *
+         * <p/>
+         * Pros:
+         * Visual consistency. Images are not popping up randomly all over the place.
+         *
+         * <p/>
+         * Cons:
+         * Artificial delay. Images are not drawn as soon as they are decoded. They must wait
+         * for their turn.
+         *
+         * <p/>
+         * Requirements:
+         * Set {@link #decodeAggregator} to a shared {@link DecodeAggregator}.
+         */
+        public static final int FEATURE_ORDERED_DISPLAY = 1;
+
+        /**
+         * Summary:
+         * This feature enables the image to move in parallax as the user scrolls, to give visual
+         * flair to your images.
+         *
+         * <p/>
+         * Explanation:
+         * When the user scrolls D pixels in the vertical direction, this ExtendedBitmapDrawable
+         * shifts its Bitmap f(D) pixels in the vertical direction before drawing to the screen.
+         * Depending on the function f, the parallax effect can give varying interesting results.
+         *
+         * <p/>
+         * Pros:
+         * Visual pop and playfulness. Feeling of movement. Pleasantly surprise your users.
+         *
+         * <p/>
+         * Cons:
+         * Some users report motion sickness with certain speed multiplier values. Decode height
+         * must be greater than visual bounds to account for the parallax. This uses more memory and
+         * decoding time.
+         *
+         * <p/>
+         * Requirements:
+         * Set {@link #parallaxSpeedMultiplier} to the ratio between the decoded height and the
+         * visual bound height. Call {@link ExtendedBitmapDrawable#setParallaxFraction(float)} when
+         * the user scrolls, usually accomplished in your view's
+         * {@link android.view.View#onDraw(android.graphics.Canvas)} method.
+         */
+        public static final int FEATURE_PARALLAX = 1 << 1;
+
+        /**
+         * Summary:
+         * This feature enables fading in between multiple decode states, to give smooth transitions
+         * to and from the placeholder, progress bars, and decoded image.
+         *
+         * <p/>
+         * Explanation:
+         * The states are: {@link ExtendedBitmapDrawable#LOAD_STATE_UNINITIALIZED},
+         * {@link ExtendedBitmapDrawable#LOAD_STATE_NOT_YET_LOADED},
+         * {@link ExtendedBitmapDrawable#LOAD_STATE_LOADING},
+         * {@link ExtendedBitmapDrawable#LOAD_STATE_LOADED}, and
+         * {@link ExtendedBitmapDrawable#LOAD_STATE_FAILED}. These states affect whether the
+         * placeholder and/or the progress bar is showing and animating. We first show the
+         * pulsating placeholder when an image begins decoding. After 2 seconds, we fade in a
+         * spinning progress bar. When the decode completes, we fade in the image.
+         *
+         * <p/>
+         * Pros:
+         * Smooth, beautiful transitions avoid perceived jank. Progress indicator informs users that
+         * work is being done and the app is not stalled.
+         *
+         * <p/>
+         * Cons:
+         * Very fast decodes' short decode time would be eclipsed by the animation duration. Static
+         * placeholder could be accomplished by {@link BasicBitmapDrawable} without the added
+         * complexity of states.
+         *
+         * <p/>
+         * Requirements:
+         * Set {@link #backgroundColor} to the color used for the background of the placeholder and
+         * progress bar. Use the alternative constructor to populate {@link #placeholder} and
+         * {@link #progressBar}.
+         */
+        public static final int FEATURE_STATE_CHANGES = 1 << 2;
+
+        /**
+         * Non-changeable bit field describing the features you want the
+         * {@link ExtendedBitmapDrawable} to support.
+         *
+         * <p/>
+         * Example:
+         * <code>
+         * opts.features = FEATURE_ORDERED_DISPLAY | FEATURE_PARALLAX | FEATURE_STATE_CHANGES;
+         * </code>
+         */
+        public final int features;
+
+        /**
+         * Required field if {@link #FEATURE_ORDERED_DISPLAY} is supported.
+         */
+        public DecodeAggregator decodeAggregator = null;
+
+        /**
+         * Required field if {@link #FEATURE_PARALLAX} is supported.
+         *
+         * A value of 1.5f gives a subtle parallax, and is a good value to
+         * start with. 2.0f gives a more obvious parallax, arguably exaggerated. Some users report
+         * motion sickness with 2.0f. A value of 1.0f is synonymous with no parallax. Be careful not
+         * to set too high a value, since we will start cropping the widths if the image's height is
+         * not sufficient.
+         */
+        public float parallaxSpeedMultiplier = 1;
+
+        /**
+         * Optional field if {@link #FEATURE_STATE_CHANGES} is supported.
+         *
+         * See {@link android.graphics.Color}.
+         */
+        public int backgroundColor = 0;
+
+        /**
+         * Optional non-changeable field if {@link #FEATURE_STATE_CHANGES} is supported.
+         */
+        public final Drawable placeholder;
+
+        /**
+         * Optional non-changeable field if {@link #FEATURE_STATE_CHANGES} is supported.
+         */
+        public final Drawable progressBar;
+
+        /**
+         * Use this constructor when all the feature parameters are changeable.
+         */
+        public ExtendedOptions(final int features) {
+            this(features, null, null);
+        }
+
+        /**
+         * Use this constructor when you have to specify non-changeable feature parameters.
+         */
+        public ExtendedOptions(final int features, final Drawable placeholder,
+                final Drawable progressBar) {
+            this.features = features;
+            this.placeholder = placeholder;
+            this.progressBar = progressBar;
+        }
+
+        /**
+         * Validate this ExtendedOptions instance to make sure that all the required fields are set
+         * for the requested features.
+         *
+         * This will throw an IllegalStateException if validation fails.
+         */
+        private void validate()
+                throws IllegalStateException {
+            if ((features & FEATURE_ORDERED_DISPLAY) != 0 && decodeAggregator == null) {
+                throw new IllegalStateException(
+                        "ExtendedOptions: To support FEATURE_ORDERED_DISPLAY, "
+                                + "decodeAggregator must be set.");
+            }
+            if ((features & FEATURE_PARALLAX) != 0 && parallaxSpeedMultiplier == 0) {
+                throw new IllegalStateException(
+                        "ExtendedOptions: To support FEATURE_PARALLAX, "
+                                + "parallaxSpeedMultiplier must be set.");
+            }
+            if ((features & FEATURE_STATE_CHANGES) != 0 && backgroundColor == 0
+                    && placeholder == null) {
+                throw new IllegalStateException(
+                        "ExtendedOptions: To support FEATURE_STATE_CHANGES, "
+                                + "either backgroundColor or placeholder must be set.");
+            }
+        }
     }
 }

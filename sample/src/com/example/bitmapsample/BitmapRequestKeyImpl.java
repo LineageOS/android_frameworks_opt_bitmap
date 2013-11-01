@@ -78,7 +78,7 @@ public class BitmapRequestKeyImpl implements RequestKey {
             // Character difference between shortest and longest uri.
             final long spread = 26;
             // Maximum amount of time to sleep.
-            final long max = 2;
+            final long max = 3;
             final long duration = (long) ((float) (mUriString.length() % spread) / spread * max
                     * 1000);
             try {
