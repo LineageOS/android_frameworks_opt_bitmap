@@ -235,8 +235,12 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, getDecodeVerticalCenter(),
                 DecodeOptions.STRATEGY_ROUND_NEAREST);
         mTask = new DecodeTask(mCurrKey, opts, factory, this, mCache);
-        mTask.executeOnExecutor(EXECUTOR);
+        mTask.executeOnExecutor(getExecutor());
         Trace.endSection();
+    }
+
+    protected Executor getExecutor() {
+        return EXECUTOR;
     }
 
     protected float getDrawVerticalCenter() {
