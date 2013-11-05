@@ -34,7 +34,6 @@ import com.android.bitmap.DecodeAggregator;
 import com.android.bitmap.DecodeTask;
 import com.android.bitmap.R;
 import com.android.bitmap.RequestKey;
-import com.android.bitmap.RequestKey.FileDescriptorFactory;
 import com.android.bitmap.ReusableBitmap;
 import com.android.bitmap.util.Trace;
 
@@ -151,13 +150,17 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     }
 
     @Override
-    protected void decode(final FileDescriptorFactory factory) {
+    protected void loadFileDescriptorFactory() {
         boolean executeStateChange = shouldExecuteStateChange();
         if (executeStateChange) {
-            setLoadState(LOAD_STATE_NOT_YET_LOADED);
+            if (mCurrKey == null || mDecodeWidth == 0 || mDecodeHeight == 0) {
+                setLoadState(LOAD_STATE_FAILED);
+            } else {
+                setLoadState(LOAD_STATE_NOT_YET_LOADED);
+            }
         }
 
-        super.decode(factory);
+        super.loadFileDescriptorFactory();
     }
 
     protected boolean shouldExecuteStateChange() {

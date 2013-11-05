@@ -62,6 +62,8 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
 
     protected RequestKey mCurrKey;
     protected RequestKey mPrevKey;
+    protected int mDecodeWidth;
+    protected int mDecodeHeight;
 
     protected final Paint mPaint = new Paint();
     private final BitmapCache mCache;
@@ -71,8 +73,6 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
     private ReusableBitmap mBitmap;
     private DecodeTask mTask;
     private Cancelable mCreateFileDescriptorFactoryTask;
-    private int mDecodeWidth;
-    private int mDecodeHeight;
 
     // based on framework CL:I015d77
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
@@ -109,7 +109,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         return mCurrKey;
     }
 
-    protected final ReusableBitmap getBitmap() {
+    protected ReusableBitmap getBitmap() {
         return mBitmap;
     }
 
@@ -131,7 +131,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      *
      * All UI operations should be called from the UI thread.
      */
-    public final void bind(RequestKey key) {
+    public void bind(RequestKey key) {
         setImage(key);
     }
 
@@ -141,7 +141,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      *
      * All UI operations should be called from the UI thread.
      */
-    public final void unbind() {
+    public void unbind() {
         setImage(null);
     }
 
