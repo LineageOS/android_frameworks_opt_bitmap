@@ -105,31 +105,49 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         }
     }
 
-    public RequestKey getKey() {
+    public final RequestKey getKey() {
         return mCurrKey;
     }
 
-    protected ReusableBitmap getBitmap() {
+    protected final ReusableBitmap getBitmap() {
         return mBitmap;
     }
 
     /**
-     * Set the dimensions to decode into.
+     * Set the dimensions to decode into. These dimensions should never change while the drawable is
+     * attached to the same cache, because caches can only contain bitmaps of one size for re-use.
+     *
+     * All UI operations should be called from the UI thread.
      */
-    public void setDecodeDimensions(int w, int h) {
+    public final void setDecodeDimensions(int w, int h) {
         mDecodeWidth = w;
         mDecodeHeight = h;
         loadFileDescriptorFactory();
     }
 
-    public void unbind() {
-        setImage(null);
-    }
-
-    public void bind(RequestKey key) {
+    /**
+     * Binds to the given key and start the decode process. This will first look in the cache, then
+     * decode from the request key if not found.
+     *
+     * All UI operations should be called from the UI thread.
+     */
+    public final void bind(RequestKey key) {
         setImage(key);
     }
 
+    /**
+     * Unbinds the current key and bitmap from the drawable. This will cause the bitmap to decrement
+     * its ref count.
+     *
+     * All UI operations should be called from the UI thread.
+     */
+    public final void unbind() {
+        setImage(null);
+    }
+
+    /**
+     * Should only be overriden, not called.
+     */
     protected void setImage(final RequestKey key) {
         if (mCurrKey != null && mCurrKey.equals(key)) {
             return;
@@ -178,6 +196,9 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         Trace.endSection();
     }
 
+    /**
+     * Should only be overriden, not called.
+     */
     protected void setBitmap(ReusableBitmap bmp) {
         if (mBitmap != null && mBitmap != bmp) {
             mBitmap.releaseReference();
@@ -186,6 +207,9 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         invalidateSelf();
     }
 
+    /**
+     * Should only be overriden, not called.
+     */
     protected void loadFileDescriptorFactory() {
         if (mCurrKey == null || mDecodeWidth == 0 || mDecodeHeight == 0) {
             return;
@@ -214,6 +238,9 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         }
     }
 
+    /**
+     * Should only be overriden, not called.
+     */
     protected void decode(final FileDescriptorFactory factory) {
         Trace.beginSection("decode");
         final int bufferW;

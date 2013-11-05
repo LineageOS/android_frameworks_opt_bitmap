@@ -536,9 +536,9 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
          * <p/>
          * Requirements:
          * Set {@link #parallaxSpeedMultiplier} to the ratio between the decoded height and the
-         * visual bound height. Call {@link ExtendedBitmapDrawable#setParallaxFraction(float)} when
-         * the user scrolls, usually accomplished in your view's
-         * {@link android.view.View#onDraw(android.graphics.Canvas)} method.
+         * visual bound height. Call {@link ExtendedBitmapDrawable#setDecodeDimensions(int, int)}
+         * with the height multiplied by {@link #parallaxSpeedMultiplier}.
+         * Call {@link ExtendedBitmapDrawable#setParallaxFraction(float)} when the user scrolls.
          */
         public static final int FEATURE_PARALLAX = 1 << 1;
 
