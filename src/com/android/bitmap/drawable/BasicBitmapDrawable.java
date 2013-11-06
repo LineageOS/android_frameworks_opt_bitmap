@@ -312,7 +312,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
             // Rotate the canvas.
             canvas.save();
             canvas.rotate(orientation, bounds.centerX(), bounds.centerY());
-            onDrawBitmap(canvas, rotatedBounds);
+            onDrawBitmap(canvas, sRect, rotatedBounds);
             canvas.restore();
         }
     }
@@ -321,8 +321,8 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      * Override this method to customize how to draw the bitmap to the canvas for the given bounds.
      * The bitmap to be drawn can be found at {@link #getBitmap()}.
      */
-    protected void onDrawBitmap(final Canvas canvas, final Rect bounds) {
-        canvas.drawBitmap(mBitmap.bmp, sRect, bounds, mPaint);
+    protected void onDrawBitmap(final Canvas canvas, final Rect src, final Rect dst) {
+        canvas.drawBitmap(mBitmap.bmp, src, dst, mPaint);
     }
 
     @Override
