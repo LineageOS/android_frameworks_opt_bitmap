@@ -70,6 +70,9 @@ public interface RequestKey {
      * the given callback. This method will be called first; if it returns null,
      * {@link #createInputStream()} will be called.
      *
+     * Clients should implement this method if files are in the local cache folder, or if files must
+     * be downloaded and cached.
+     *
      * This method must be called from the UI thread.
      *
      * @param key      The key to create a FileDescriptorFactory for. This key will be passed to the
@@ -88,6 +91,9 @@ public interface RequestKey {
     /**
      * Create an {@link InputStream} for the source. This method will be called if
      * {@link #createFileDescriptorFactoryAsync(RequestKey, Callback)} returns null.
+     *
+     * Clients should implement this method if files exist in the assets/ folder, or for prototypes
+     * that open a connection directly on a URL (be warned that this will cause GCs).
      *
      * This method can be called from any thread.
      */
