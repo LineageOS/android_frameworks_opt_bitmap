@@ -132,7 +132,9 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      * All UI operations should be called from the UI thread.
      */
     public void bind(RequestKey key) {
+        Trace.beginSection("bind");
         setImage(key);
+        Trace.endSection();
     }
 
     /**
@@ -142,7 +144,9 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      * All UI operations should be called from the UI thread.
      */
     public void unbind() {
+        Trace.beginSection("unbind");
         setImage(null);
+        Trace.endSection();
     }
 
     /**

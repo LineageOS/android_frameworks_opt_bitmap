@@ -371,17 +371,26 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
                 int placeholderHeight, int fadeOutDurationMs, ExtendedOptions opts) {
             super(placeholder, placeholderWidth, placeholderHeight, fadeOutDurationMs, opts);
 
-            mPulseAnimator = ValueAnimator.ofInt(55, 255)
-                    .setDuration(res.getInteger(R.integer.bitmap_placeholder_animation_duration));
-            mPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
-            mPulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
-            mPulseAnimator.addUpdateListener(new AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    mPulseAlphaFraction = ((Integer) animation.getAnimatedValue()) / 255f;
-                    setInnerAlpha(getCurrentAlpha());
+            if (opts.placeholderAnimationDuration == -1) {
+                mPulseAnimator = null;
+            } else {
+                final long pulseDuration;
+                if (opts.placeholderAnimationDuration == 0) {
+                    pulseDuration = res.getInteger(R.integer.bitmap_placeholder_animation_duration);
+                } else {
+                    pulseDuration = opts.placeholderAnimationDuration;
                 }
-            });
+                mPulseAnimator = ValueAnimator.ofInt(55, 255).setDuration(pulseDuration);
+                mPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+                mPulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
+                mPulseAnimator.addUpdateListener(new AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        mPulseAlphaFraction = ((Integer) animation.getAnimatedValue()) / 255f;
+                        setInnerAlpha(getCurrentAlpha());
+                    }
+                });
+            }
             mFadeOutAnimator.addListener(new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationEnd(Animator animation) {
@@ -399,6 +408,8 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
             mPulseEnabled = enabled;
             if (!mPulseEnabled) {
                 stopPulsing();
+            } else {
+                startPulsing();
             }
         }
 
@@ -410,13 +421,19 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
             }
         }
 
+        private void startPulsing() {
+            if (mPulseAnimator != null && !mPulseAnimator.isStarted()) {
+                mPulseAnimator.start();
+            }
+        }
+
         @Override
         public boolean setVisible(boolean visible) {
             final boolean changed = super.setVisible(visible);
             if (changed) {
                 if (isVisible()) {
                     // start
-                    if (mPulseAnimator != null && mPulseEnabled) {
+                    if (mPulseAnimator != null && mPulseEnabled && !mPulseAnimator.isStarted()) {
                         mPulseAnimator.start();
                     }
                 } else {
@@ -576,7 +593,7 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
          * Requirements:
          * Set {@link #backgroundColor} to the color used for the background of the placeholder and
          * progress bar. Use the alternative constructor to populate {@link #placeholder} and
-         * {@link #progressBar}.
+         * {@link #progressBar}. Optionally set {@link #placeholderAnimationDuration}.
          */
         public static final int FEATURE_STATE_CHANGES = 1 << 2;
 
@@ -621,6 +638,15 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         public final Drawable placeholder;
 
         /**
+         * Optional field if {@link #FEATURE_STATE_CHANGES} is supported.
+         *
+         * Special value 0 means default animation duration. Special value -1 means disable the
+         * animation (placeholder will be at maximum alpha always). Any value > 0 defines the
+         * duration in milliseconds.
+         */
+        public int placeholderAnimationDuration = 0;
+
+        /**
          * Optional non-changeable field if {@link #FEATURE_STATE_CHANGES} is supported.
          */
         public final Drawable progressBar;
@@ -660,11 +686,18 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
                         "ExtendedOptions: To support FEATURE_PARALLAX, "
                                 + "parallaxSpeedMultiplier must be set.");
             }
-            if ((features & FEATURE_STATE_CHANGES) != 0 && backgroundColor == 0
-                    && placeholder == null) {
-                throw new IllegalStateException(
-                        "ExtendedOptions: To support FEATURE_STATE_CHANGES, "
-                                + "either backgroundColor or placeholder must be set.");
+            if ((features & FEATURE_STATE_CHANGES) != 0) {
+                if (backgroundColor == 0
+                        && placeholder == null) {
+                    throw new IllegalStateException(
+                            "ExtendedOptions: To support FEATURE_STATE_CHANGES, "
+                                    + "either backgroundColor or placeholder must be set.");
+                }
+                if (placeholderAnimationDuration < -1) {
+                    throw new IllegalStateException(
+                            "ExtendedOptions: To support FEATURE_STATE_CHANGES, "
+                                    + "placeholderAnimationDuration must be set correctly.");
+                }
             }
         }
     }
