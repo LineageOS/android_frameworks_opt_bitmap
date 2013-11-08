@@ -681,7 +681,7 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
                         "ExtendedOptions: To support FEATURE_ORDERED_DISPLAY, "
                                 + "decodeAggregator must be set.");
             }
-            if ((features & FEATURE_PARALLAX) != 0 && parallaxSpeedMultiplier == 0) {
+            if ((features & FEATURE_PARALLAX) != 0 && parallaxSpeedMultiplier == 1) {
                 throw new IllegalStateException(
                         "ExtendedOptions: To support FEATURE_PARALLAX, "
                                 + "parallaxSpeedMultiplier must be set.");
