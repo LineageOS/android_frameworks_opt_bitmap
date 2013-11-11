@@ -81,11 +81,17 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
             final int fadeOutDurationMs = res.getInteger(R.integer.bitmap_fade_animation_duration);
             mProgressDelayMs = res.getInteger(R.integer.bitmap_progress_animation_delay);
 
-            // Placeholder is not optional because of backgroundColor.
+            // Placeholder is not optional because backgroundColor is part of it.
+            Drawable placeholder = null;
+            if (opts.placeholder != null) {
+                ConstantState constantState = opts.placeholder.getConstantState();
+                if (constantState != null) {
+                    placeholder = constantState.newDrawable(res);
+                }
+            }
             int placeholderSize = res.getDimensionPixelSize(R.dimen.placeholder_size);
-            mPlaceholder = new Placeholder(
-                    opts.placeholder != null ? opts.placeholder.getConstantState().newDrawable(res)
-                            : null, res, placeholderSize, placeholderSize, fadeOutDurationMs, opts);
+            mPlaceholder = new Placeholder(placeholder, res, placeholderSize, placeholderSize,
+                    fadeOutDurationMs, opts);
             mPlaceholder.setCallback(this);
 
             // Progress bar is optional.
