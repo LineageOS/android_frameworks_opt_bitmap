@@ -61,7 +61,6 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     private final ExtendedOptions mOpts;
 
     // Parallax.
-    private static final float DECODE_VERTICAL_CENTER = 1f / 3;
     private float mParallaxFraction = 1f / 2;
 
     // State changes.
@@ -157,12 +156,26 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         setLoadState(LOAD_STATE_FAILED);
     }
 
+    /**
+     * Directly sets the decode width and height. The given height should already have had the
+     * parallaxSpeedMultiplier applied to it.
+     */
+    public void setExactDecodeDimensions(int width, int height) {
+        super.setDecodeDimensions(width, height);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * The given height should not have had the parallaxSpeedMultiplier applied to it.
+     */
+    @Override
+    public void setDecodeDimensions(int width, int height) {
+        super.setDecodeDimensions(width, (int) (height * mOpts.parallaxSpeedMultiplier));
+    }
+
     @Override
     protected void setImage(final RequestKey key) {
-        if (mCurrKey != null && mCurrKey.equals(key)) {
-            return;
-        }
-
         if (mCurrKey != null && getDecodeAggregator() != null) {
             getDecodeAggregator().forget(mCurrKey);
         }
@@ -212,13 +225,13 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     }
 
     @Override
-    protected float getDrawVerticalOffsetMultiplier() {
+    protected final float getDrawVerticalOffsetMultiplier() {
         return mOpts.parallaxSpeedMultiplier;
     }
 
     @Override
     protected float getDecodeVerticalCenter() {
-        return DECODE_VERTICAL_CENTER;
+        return mOpts.decodeVerticalCenter;
     }
 
     private DecodeAggregator getDecodeAggregator() {
@@ -651,6 +664,23 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         public final int features;
 
         /**
+         * Optional field for general decoding.
+         *
+         * This field determines which section of the source image to decode from. A value of 0
+         * indicates a preference for the very top of the source, while a value of 1 indicates a
+         * preference for the very bottom of the source. A value of .5 will result in the center
+         * of the source being decoded.
+         *
+         * This should not be confused with {@link #setParallaxFraction(float)}. This field
+         * determines the general section for decode. The parallax fraction then determines the
+         * slice from within that section for display.
+         *
+         * The default value of 1f / 3 provides a good heuristic for the subject's face in a
+         * portrait photo.
+         */
+        public float decodeVerticalCenter = 1f / 3;
+
+        /**
          * Required field if {@link #FEATURE_ORDERED_DISPLAY} is supported.
          */
         public DecodeAggregator decodeAggregator = null;
@@ -725,6 +755,10 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
          */
         private void validate()
                 throws IllegalStateException {
+            if (decodeVerticalCenter < 0 || decodeVerticalCenter > 1) {
+                throw new IllegalStateException(
+                        "ExtendedOptions: decodeVerticalCenter must be within 0 and 1, inclusive");
+            }
             if ((features & FEATURE_ORDERED_DISPLAY) != 0 && decodeAggregator == null) {
                 throw new IllegalStateException(
                         "ExtendedOptions: To support FEATURE_ORDERED_DISPLAY, "

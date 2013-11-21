@@ -47,18 +47,23 @@ public class BitmapDrawableImageView extends ImageView {
     }
 
     /**
-     * Get the source BasicBitmapDrawable for this BitmapDrawableImageView.
-     * @return The source drawable.
+     * Get the source drawable for this BitmapDrawableImageView.
+     * @return The source drawable casted to the given type, or null if the type does not match.
      */
-    public BasicBitmapDrawable getBasicBitmapDrawable() {
-        return mDrawable;
+    @SuppressWarnings("unchecked") // Cast to type parameter.
+    public <E extends BasicBitmapDrawable> E getTypedDrawable() {
+        try {
+            return (E) mDrawable;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     /**
-     * Set the given BasicBitmapDrawable as the source for this BitmapDrawableImageView.
+     * Set the given drawable as the source for this BitmapDrawableImageView.
      * @param drawable The source drawable.
      */
-    public void setBasicBitmapDrawable(BasicBitmapDrawable drawable) {
+    public <E extends BasicBitmapDrawable> void setTypedDrawable(E drawable) {
         super.setImageDrawable(drawable);
         unbindDrawable();
         mDrawable = drawable;

@@ -119,10 +119,12 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      *
      * All UI operations should be called from the UI thread.
      */
-    public final void setDecodeDimensions(int w, int h) {
-        mDecodeWidth = w;
-        mDecodeHeight = h;
-        bind(mCurrKey);
+    public void setDecodeDimensions(int width, int height) {
+        if (mDecodeWidth == 0 || mDecodeHeight == 0) {
+            mDecodeWidth = width;
+            mDecodeHeight = height;
+            setImage(mCurrKey);
+        }
     }
 
     /**
@@ -133,6 +135,9 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      */
     public void bind(RequestKey key) {
         Trace.beginSection("bind");
+        if (mCurrKey != null && mCurrKey.equals(key)) {
+            return;
+        }
         setImage(key);
         Trace.endSection();
     }
@@ -153,10 +158,6 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      * Should only be overriden, not called.
      */
     protected void setImage(final RequestKey key) {
-        if (mCurrKey != null && mCurrKey.equals(key)) {
-            return;
-        }
-
         Trace.beginSection("set image");
         Trace.beginSection("release reference");
         if (mBitmap != null) {
@@ -282,6 +283,10 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         return NO_MULTIPLIER;
     }
 
+    /**
+     * Clients can override this to specify which section of the source image to decode from.
+     * Possible applications include using face detection to always decode around facial features.
+     */
     protected float getDecodeVerticalCenter() {
         return VERTICAL_CENTER;
     }

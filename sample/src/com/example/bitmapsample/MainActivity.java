@@ -118,11 +118,10 @@ public class MainActivity extends Activity {
                 final ExtendedBitmapDrawable drawable = new ExtendedBitmapDrawable(getResources(),
                         mCache, true /* limit density */, opts);
 
-                v.setBasicBitmapDrawable(drawable);
+                v.setTypedDrawable(drawable);
                 v.setListView(mListView);
-                v.setParallaxSpeedMultiplier(NORMAL_PARALLAX_MULTIPLIER);
             }
-            v.getBasicBitmapDrawable().bind(new BitmapRequestKeyImpl(mItems[position]));
+            v.getTypedDrawable().bind(new BitmapRequestKeyImpl(mItems[position]));
             return v;
         }
     }
