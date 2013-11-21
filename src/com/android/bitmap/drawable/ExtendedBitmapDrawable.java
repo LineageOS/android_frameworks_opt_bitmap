@@ -198,9 +198,11 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
      *
      * The reason for this is that we need the placeholder and progress bar to be drawn over our
      * content. Those two drawables fade out, giving the impression that our content is fading in.
+     *
+     * Only override this method for custom drawings on top of all the drawable layers.
      */
     @Override
-    public final void draw(final Canvas canvas) {
+    public void draw(final Canvas canvas) {
         final Rect bounds = getBounds();
         if (bounds.isEmpty()) {
             return;
