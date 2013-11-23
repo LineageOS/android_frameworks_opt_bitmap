@@ -22,6 +22,7 @@ import android.animation.ValueAnimator;
 import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.content.res.Resources;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
@@ -634,7 +635,7 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         public float parallaxSpeedMultiplier = 1;
 
         /**
-         * Optional field if {@link #FEATURE_STATE_CHANGES} is supported.
+         * Optional field if {@link #FEATURE_STATE_CHANGES} is supported. Must be an opaque color.
          *
          * See {@link android.graphics.Color}.
          */
@@ -705,6 +706,11 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
                     throw new IllegalStateException(
                             "ExtendedOptions: To support FEATURE_STATE_CHANGES, "
                                     + "placeholderAnimationDuration must be set correctly.");
+                }
+                if (backgroundColor != 0 && Color.alpha(backgroundColor) != 255) {
+                    throw new IllegalStateException(
+                            "ExtendedOptions: To support FEATURE_STATE_CHANGES, "
+                                    + "backgroundColor must be set to an opaque color.");
                 }
             }
         }

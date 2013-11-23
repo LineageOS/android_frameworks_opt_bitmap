@@ -19,7 +19,6 @@ package com.android.bitmap.drawable;
 import android.animation.ValueAnimator;
 import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.Paint;
 import android.graphics.Rect;
@@ -91,13 +90,10 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
         if (!isVisible() && mPaint.getAlpha() == 0) {
             return;
         }
-        // Save paint alpha.
         final int alpha = mPaint.getAlpha();
-        mPaint.setColor(getColorWithAlpha(mOpts.backgroundColor, alpha));
-        canvas.drawRect(getBounds(), mPaint);
-        // Restore paint alpha.
+        mPaint.setColor(mOpts.backgroundColor);
         mPaint.setAlpha(alpha);
-
+        canvas.drawRect(getBounds(), mPaint);
         if (mInner != null) mInner.draw(canvas);
     }
 
@@ -179,11 +175,5 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
     @Override
     public void unscheduleDrawable(Drawable who, Runnable what) {
         unscheduleSelf(what);
-    }
-
-    private static int getColorWithAlpha(int color, int alpha) {
-        float fade = alpha / 255f;
-        return Color.argb((int) (fade * Color.alpha(color)), Color.red(color), Color.green(color),
-                Color.blue(color));
     }
 }
