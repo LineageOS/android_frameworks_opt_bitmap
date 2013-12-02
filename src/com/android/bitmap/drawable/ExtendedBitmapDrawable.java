@@ -142,9 +142,6 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         // this allows the initial transition to be specially instantaneous, so e.g. a cache hit
         // doesn't unnecessarily trigger a fade-in
         setLoadState(LOAD_STATE_UNINITIALIZED);
-        if (key == null) {
-            setLoadState(LOAD_STATE_FAILED);
-        }
 
         super.setImage(key);
     }
@@ -159,12 +156,12 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     @Override
     protected void loadFileDescriptorFactory() {
         boolean executeStateChange = shouldExecuteStateChange();
+        if (mCurrKey == null || mDecodeWidth == 0 || mDecodeHeight == 0) {
+          return;
+        }
+
         if (executeStateChange) {
-            if (mCurrKey == null || mDecodeWidth == 0 || mDecodeHeight == 0) {
-                setLoadState(LOAD_STATE_FAILED);
-            } else {
-                setLoadState(LOAD_STATE_NOT_YET_LOADED);
-            }
+            setLoadState(LOAD_STATE_NOT_YET_LOADED);
         }
 
         super.loadFileDescriptorFactory();

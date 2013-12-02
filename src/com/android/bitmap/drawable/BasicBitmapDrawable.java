@@ -122,7 +122,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
     public final void setDecodeDimensions(int w, int h) {
         mDecodeWidth = w;
         mDecodeHeight = h;
-        loadFileDescriptorFactory();
+        bind(mCurrKey);
     }
 
     /**
