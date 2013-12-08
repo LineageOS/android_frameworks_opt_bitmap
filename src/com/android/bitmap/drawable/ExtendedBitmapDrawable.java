@@ -44,10 +44,18 @@ import com.android.bitmap.util.Trace;
  * to draw upon state changes.
  * <p>
  * The actual bitmap decode work is handled by {@link DecodeTask}.
- * TODO: have this class extend from BasicBitmapDrawable
  */
 public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     Runnable, Parallaxable, DecodeAggregator.Callback {
+
+    public static final int LOAD_STATE_UNINITIALIZED = 0;
+    public static final int LOAD_STATE_NOT_YET_LOADED = 1;
+    public static final int LOAD_STATE_LOADING = 2;
+    public static final int LOAD_STATE_LOADED = 3;
+    public static final int LOAD_STATE_FAILED = 4;
+
+    public static final boolean DEBUG = false;
+    public static final String TAG = ExtendedBitmapDrawable.class.getSimpleName();
 
     private final ExtendedOptions mOpts;
 
@@ -56,19 +64,11 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     private float mParallaxFraction = 1f / 2;
 
     // State changes.
-    private static final int LOAD_STATE_UNINITIALIZED = 0;
-    private static final int LOAD_STATE_NOT_YET_LOADED = 1;
-    private static final int LOAD_STATE_LOADING = 2;
-    private static final int LOAD_STATE_LOADED = 3;
-    private static final int LOAD_STATE_FAILED = 4;
     private int mLoadState = LOAD_STATE_UNINITIALIZED;
     private Placeholder mPlaceholder;
     private Progress mProgress;
     private int mProgressDelayMs;
     private final Handler mHandler = new Handler();
-
-    public static final boolean DEBUG = false;
-    public static final String TAG = ExtendedBitmapDrawable.class.getSimpleName();
 
     public ExtendedBitmapDrawable(final Resources res, final BitmapCache cache,
             final boolean limitDensity, final ExtendedOptions opts) {
@@ -84,14 +84,28 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
 
             // Placeholder is not optional because backgroundColor is part of it.
             Drawable placeholder = null;
+            int placeholderWidth = res.getDimensionPixelSize(R.dimen.placeholder_size);
+            int placeholderHeight = res.getDimensionPixelSize(R.dimen.placeholder_size);
             if (opts.placeholder != null) {
                 ConstantState constantState = opts.placeholder.getConstantState();
                 if (constantState != null) {
                     placeholder = constantState.newDrawable(res);
+
+                    Rect bounds = opts.placeholder.getBounds();
+                    if (bounds.width() != 0) {
+                        placeholderWidth = bounds.width();
+                    } else if (placeholder.getIntrinsicWidth() != -1) {
+                        placeholderWidth = placeholder.getIntrinsicWidth();
+                    }
+                    if (bounds.height() != 0) {
+                        placeholderHeight = bounds.height();
+                    } else if (placeholder.getIntrinsicHeight() != -1) {
+                        placeholderHeight = placeholder.getIntrinsicHeight();
+                    }
                 }
             }
-            int placeholderSize = res.getDimensionPixelSize(R.dimen.placeholder_size);
-            mPlaceholder = new Placeholder(placeholder, res, placeholderSize, placeholderSize,
+
+            mPlaceholder = new Placeholder(placeholder, res, placeholderWidth, placeholderHeight,
                     fadeOutDurationMs, opts);
             mPlaceholder.setCallback(this);
 
@@ -144,6 +158,10 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         setLoadState(LOAD_STATE_UNINITIALIZED);
 
         super.setImage(key);
+
+        if (key == null) {
+            showStaticPlaceholder();
+        }
     }
 
     @Override
@@ -300,6 +318,13 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
             getDecodeAggregator().forget(key);
         }
         super.onDecodeCancel(key);
+    }
+
+    /**
+     * Get the load state of this drawable. Return one of the LOAD_STATE constants.
+     */
+    public int getLoadState() {
+        return mLoadState;
     }
 
     /**

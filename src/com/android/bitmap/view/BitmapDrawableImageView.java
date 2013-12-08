@@ -67,7 +67,6 @@ public class BitmapDrawableImageView extends ImageView {
     private void unbindDrawable() {
         if (mDrawable != null) {
             mDrawable.unbind();
-            mDrawable = null;
         }
     }
 
@@ -75,24 +74,28 @@ public class BitmapDrawableImageView extends ImageView {
     public void setImageResource(final int resId) {
         super.setImageResource(resId);
         unbindDrawable();
+        mDrawable = null;
     }
 
     @Override
     public void setImageURI(final Uri uri) {
         super.setImageURI(uri);
         unbindDrawable();
+        mDrawable = null;
     }
 
     @Override
     public void setImageDrawable(final Drawable drawable) {
         super.setImageDrawable(drawable);
         unbindDrawable();
+        mDrawable = null;
     }
 
     @Override
     public void setImageBitmap(final Bitmap bm) {
         super.setImageBitmap(bm);
         unbindDrawable();
+        mDrawable = null;
     }
 
     @Override
