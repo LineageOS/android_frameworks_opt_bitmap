@@ -348,6 +348,16 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                     decodeResult = bitmap;
                 } catch (IOException e) {
                     // fall through to below and try again with the non-cropping decoder
+                    if (fd == null) {
+                        in = reset(in);
+                        if (in == null) {
+                            return null;
+                        }
+                        if (isCancelled()) {
+                            return null;
+                        }
+                    }
+
                     e.printStackTrace();
                 } finally {
                     Trace.endSection();
