@@ -57,6 +57,7 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     public static final boolean DEBUG = false;
     public static final String TAG = ExtendedBitmapDrawable.class.getSimpleName();
 
+    private final Resources mResources;
     private final ExtendedOptions mOpts;
 
     // Parallax.
@@ -73,25 +74,34 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     public ExtendedBitmapDrawable(final Resources res, final BitmapCache cache,
             final boolean limitDensity, final ExtendedOptions opts) {
         super(res, cache, limitDensity);
-
-        opts.validate();
+        mResources = res;
         mOpts = opts;
 
+        onOptsChanged();
+    }
+
+    /**
+     * Called after a field is changed in an {@link ExtendedOptions}, if that field requests this
+     * method to be called.
+     */
+    public void onOptsChanged() {
+        mOpts.validate();
+
         // Placeholder and progress.
-        if ((opts.features & ExtendedOptions.FEATURE_STATE_CHANGES) != 0) {
-            final int fadeOutDurationMs = res.getInteger(R.integer.bitmap_fade_animation_duration);
-            mProgressDelayMs = res.getInteger(R.integer.bitmap_progress_animation_delay);
+        if ((mOpts.features & ExtendedOptions.FEATURE_STATE_CHANGES) != 0) {
+            final int fadeOutDurationMs = mResources.getInteger(R.integer.bitmap_fade_animation_duration);
+            mProgressDelayMs = mResources.getInteger(R.integer.bitmap_progress_animation_delay);
 
             // Placeholder is not optional because backgroundColor is part of it.
             Drawable placeholder = null;
-            int placeholderWidth = res.getDimensionPixelSize(R.dimen.placeholder_size);
-            int placeholderHeight = res.getDimensionPixelSize(R.dimen.placeholder_size);
-            if (opts.placeholder != null) {
-                ConstantState constantState = opts.placeholder.getConstantState();
+            int placeholderWidth = mResources.getDimensionPixelSize(R.dimen.placeholder_size);
+            int placeholderHeight = mResources.getDimensionPixelSize(R.dimen.placeholder_size);
+            if (mOpts.placeholder != null) {
+                ConstantState constantState = mOpts.placeholder.getConstantState();
                 if (constantState != null) {
-                    placeholder = constantState.newDrawable(res);
+                    placeholder = constantState.newDrawable(mResources);
 
-                    Rect bounds = opts.placeholder.getBounds();
+                    Rect bounds = mOpts.placeholder.getBounds();
                     if (bounds.width() != 0) {
                         placeholderWidth = bounds.width();
                     } else if (placeholder.getIntrinsicWidth() != -1) {
@@ -105,18 +115,22 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
                 }
             }
 
-            mPlaceholder = new Placeholder(placeholder, res, placeholderWidth, placeholderHeight,
-                    fadeOutDurationMs, opts);
+            mPlaceholder = new Placeholder(placeholder, mResources, placeholderWidth, placeholderHeight,
+                    fadeOutDurationMs, mOpts);
             mPlaceholder.setCallback(this);
 
             // Progress bar is optional.
-            if (opts.progressBar != null) {
-                int progressBarSize = res.getDimensionPixelSize(R.dimen.progress_bar_size);
-                mProgress = new Progress(opts.progressBar.getConstantState().newDrawable(res), res,
-                        progressBarSize, progressBarSize, fadeOutDurationMs, opts);
+            if (mOpts.progressBar != null) {
+                int progressBarSize = mResources.getDimensionPixelSize(R.dimen.progress_bar_size);
+                mProgress = new Progress(mOpts.progressBar.getConstantState().newDrawable(mResources), mResources,
+                        progressBarSize, progressBarSize, fadeOutDurationMs, mOpts);
                 mProgress.setCallback(this);
+            } else {
+                mProgress = null;
             }
         }
+
+        setLoadState(mLoadState);
     }
 
     @Override
@@ -336,12 +350,6 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         if (DEBUG) {
             Log.v(TAG, String.format("IN setLoadState. old=%s new=%s key=%s this=%s",
                     mLoadState, loadState, mCurrKey, this));
-        }
-        if (mLoadState == loadState) {
-            if (DEBUG) {
-                Log.v(TAG, "OUT no-op setLoadState");
-            }
-            return;
         }
 
         Trace.beginSection("set load state");
@@ -664,9 +672,13 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         public int backgroundColor = 0;
 
         /**
-         * Optional non-changeable field if {@link #FEATURE_STATE_CHANGES} is supported.
+         * Optional field if {@link #FEATURE_STATE_CHANGES} is supported.
+         *
+         * If you modify this field you must call
+         * {@link ExtendedBitmapDrawable#onOptsChanged(Resources, ExtendedOptions)} on the
+         * appropriate ExtendedBitmapDrawable.
          */
-        public final Drawable placeholder;
+        public Drawable placeholder;
 
         /**
          * Optional field if {@link #FEATURE_STATE_CHANGES} is supported.
@@ -678,9 +690,13 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         public int placeholderAnimationDuration = 0;
 
         /**
-         * Optional non-changeable field if {@link #FEATURE_STATE_CHANGES} is supported.
+         * Optional field if {@link #FEATURE_STATE_CHANGES} is supported.
+         *
+         * If you modify this field you must call
+         * {@link ExtendedBitmapDrawable#onOptsChanged(Resources, ExtendedOptions)} on the
+         * appropriate ExtendedBitmapDrawable.
          */
-        public final Drawable progressBar;
+        public Drawable progressBar;
 
         /**
          * Use this constructor when all the feature parameters are changeable.
