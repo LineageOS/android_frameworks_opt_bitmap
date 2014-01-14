@@ -439,9 +439,11 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                 } catch (IOException ignored) {
                 }
             }
+
+            // Put result in cache, regardless of null.  The cache will handle null results.
+            mCache.put(mKey, result);
             if (result != null) {
                 result.acquireReference();
-                mCache.put(mKey, result);
                 if (DEBUG) {
                     Log.d(TAG, "placed result in cache: key=" + mKey + " bmp="
                         + result + " cancelled=" + isCancelled());

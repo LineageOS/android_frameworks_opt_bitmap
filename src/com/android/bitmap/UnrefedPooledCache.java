@@ -16,10 +16,11 @@
 
 package com.android.bitmap;
 
-import com.android.bitmap.util.Trace;
-
 import android.util.Log;
 import android.util.LruCache;
+
+import com.android.bitmap.util.Trace;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -86,6 +87,10 @@ public class UnrefedPooledCache<K, V extends Poolable> implements PooledCache<K,
     @Override
     public V put(K key, V value) {
         Trace.beginSection("cache put");
+        // Null values not supported.
+        if (value == null) {
+            return null;
+        }
         synchronized (mCache) {
             final V prev;
             if (value.isEligibleForPooling()) {
