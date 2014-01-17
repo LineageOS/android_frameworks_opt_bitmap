@@ -118,6 +118,7 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
             mPlaceholder = new Placeholder(placeholder, mResources, placeholderWidth, placeholderHeight,
                     fadeOutDurationMs, mOpts);
             mPlaceholder.setCallback(this);
+            mPlaceholder.setBounds(getBounds());
 
             // Progress bar is optional.
             if (mOpts.progressBar != null) {
@@ -125,6 +126,7 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
                 mProgress = new Progress(mOpts.progressBar.getConstantState().newDrawable(mResources), mResources,
                         progressBarSize, progressBarSize, fadeOutDurationMs, mOpts);
                 mProgress.setCallback(this);
+                mProgress.setBounds(getBounds());
             } else {
                 mProgress = null;
             }
