@@ -204,7 +204,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      * Should only be overriden, not called.
      */
     protected void setBitmap(ReusableBitmap bmp) {
-        if (mBitmap != null && mBitmap != bmp) {
+        if (hasBitmap()) {
             mBitmap.releaseReference();
         }
         mBitmap = bmp;
@@ -293,7 +293,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
             return;
         }
 
-        if (mBitmap != null && mBitmap.bmp != null) {
+        if (hasBitmap()) {
             BitmapUtils.calculateCroppedSrcRect(
                     mBitmap.getLogicalWidth(), mBitmap.getLogicalHeight(),
                     bounds.width(), bounds.height(),
@@ -321,12 +321,18 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         }
     }
 
+    protected boolean hasBitmap() {
+        return mBitmap != null && mBitmap.bmp != null;
+    }
+
     /**
      * Override this method to customize how to draw the bitmap to the canvas for the given bounds.
      * The bitmap to be drawn can be found at {@link #getBitmap()}.
      */
     protected void onDrawBitmap(final Canvas canvas, final Rect src, final Rect dst) {
-        canvas.drawBitmap(mBitmap.bmp, src, dst, mPaint);
+        if (hasBitmap()) {
+            canvas.drawBitmap(mBitmap.bmp, src, dst, mPaint);
+        }
     }
 
     @Override
@@ -346,7 +352,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
 
     @Override
     public int getOpacity() {
-        return (mBitmap != null && (mBitmap.bmp.hasAlpha() || mPaint.getAlpha() < 255)) ?
+        return (hasBitmap() && (mBitmap.bmp.hasAlpha() || mPaint.getAlpha() < 255)) ?
                 PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
     }
 
