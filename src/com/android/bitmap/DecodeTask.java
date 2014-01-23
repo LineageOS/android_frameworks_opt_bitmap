@@ -120,20 +120,8 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         ReusableBitmap result = null;
         ParcelFileDescriptor fd = null;
         InputStream in = null;
+
         try {
-            final boolean isJellyBeanOrAbove = android.os.Build.VERSION.SDK_INT
-                    >= android.os.Build.VERSION_CODES.JELLY_BEAN;
-            // This blocks during fling when the pool is empty. We block early to avoid jank.
-            if (isJellyBeanOrAbove) {
-                Trace.beginSection("poll for reusable bitmap");
-                mInBitmap = mCache.poll();
-                Trace.endSection();
-
-                if (isCancelled()) {
-                    return null;
-                }
-            }
-
             if (mFactory != null) {
                 Trace.beginSection("create fd");
                 fd = mFactory.createFileDescriptor();
@@ -143,6 +131,18 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                 if (in == null) {
                     return null;
                 }
+                if (isCancelled()) {
+                    return null;
+                }
+            }
+
+            final boolean isJellyBeanOrAbove = android.os.Build.VERSION.SDK_INT
+                    >= android.os.Build.VERSION_CODES.JELLY_BEAN;
+            // This blocks during fling when the pool is empty. We block early to avoid jank.
+            if (isJellyBeanOrAbove) {
+                Trace.beginSection("poll for reusable bitmap");
+                mInBitmap = mCache.poll();
+                Trace.endSection();
             }
 
             if (isCancelled()) {
