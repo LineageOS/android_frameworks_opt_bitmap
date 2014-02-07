@@ -32,6 +32,7 @@ import com.android.bitmap.drawable.BasicBitmapDrawable;
  */
 public class BitmapDrawableImageView extends ImageView {
     private BasicBitmapDrawable mDrawable;
+    private boolean mAttachedToWindow;
 
     public BitmapDrawableImageView(final Context context) {
         this(context, null);
@@ -104,8 +105,25 @@ public class BitmapDrawableImageView extends ImageView {
     }
 
     @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        mAttachedToWindow = true;
+    }
+
+    @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        unbindDrawable();
+        mAttachedToWindow = false;
+        if (!hasTransientState()) {
+            unbindDrawable();
+        }
+    }
+
+    @Override
+    public void setHasTransientState(boolean hasTransientState) {
+        super.setHasTransientState(hasTransientState);
+        if (!hasTransientState && !mAttachedToWindow) {
+            unbindDrawable();
+        }
     }
 }
