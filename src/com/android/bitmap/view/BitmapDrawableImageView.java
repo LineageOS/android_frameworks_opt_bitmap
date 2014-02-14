@@ -20,6 +20,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.widget.ImageView;
 
@@ -31,6 +32,8 @@ import com.android.bitmap.drawable.BasicBitmapDrawable;
  * window.
  */
 public class BitmapDrawableImageView extends ImageView {
+    private static final boolean hasTransientStateSupported =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN;
     private BasicBitmapDrawable mDrawable;
     private boolean mAttachedToWindow;
 
@@ -114,7 +117,7 @@ public class BitmapDrawableImageView extends ImageView {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         mAttachedToWindow = false;
-        if (!hasTransientState()) {
+        if (hasTransientStateSupported && !hasTransientState()) {
             unbindDrawable();
         }
     }
