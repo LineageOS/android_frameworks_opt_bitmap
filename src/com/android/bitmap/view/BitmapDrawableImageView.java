@@ -24,6 +24,7 @@ import android.os.Build;
 import android.util.AttributeSet;
 import android.widget.ImageView;
 
+import com.android.bitmap.RequestKey;
 import com.android.bitmap.drawable.BasicBitmapDrawable;
 
 /**
@@ -32,10 +33,11 @@ import com.android.bitmap.drawable.BasicBitmapDrawable;
  * window.
  */
 public class BitmapDrawableImageView extends ImageView {
-    private static final boolean hasTransientStateSupported =
+    private static final boolean HAS_TRANSIENT_STATE_SUPPORTED =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN;
     private BasicBitmapDrawable mDrawable;
     private boolean mAttachedToWindow;
+    private RequestKey mKeyAtLastUnbindDueToDetach;
 
     public BitmapDrawableImageView(final Context context) {
         this(context, null);
@@ -71,6 +73,7 @@ public class BitmapDrawableImageView extends ImageView {
         super.setImageDrawable(drawable);
         unbindDrawable();
         mDrawable = drawable;
+        mKeyAtLastUnbindDueToDetach = null;
     }
 
     private void unbindDrawable() {
@@ -84,6 +87,7 @@ public class BitmapDrawableImageView extends ImageView {
         super.setImageResource(resId);
         unbindDrawable();
         mDrawable = null;
+        mKeyAtLastUnbindDueToDetach = null;
     }
 
     @Override
@@ -91,6 +95,7 @@ public class BitmapDrawableImageView extends ImageView {
         super.setImageURI(uri);
         unbindDrawable();
         mDrawable = null;
+        mKeyAtLastUnbindDueToDetach = null;
     }
 
     @Override
@@ -98,6 +103,7 @@ public class BitmapDrawableImageView extends ImageView {
         super.setImageDrawable(drawable);
         unbindDrawable();
         mDrawable = null;
+        mKeyAtLastUnbindDueToDetach = null;
     }
 
     @Override
@@ -105,19 +111,27 @@ public class BitmapDrawableImageView extends ImageView {
         super.setImageBitmap(bm);
         unbindDrawable();
         mDrawable = null;
+        mKeyAtLastUnbindDueToDetach = null;
     }
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         mAttachedToWindow = true;
+        if (mDrawable != null && mDrawable.getKey() == null) {
+            mDrawable.bind(mKeyAtLastUnbindDueToDetach);
+        }
+        mKeyAtLastUnbindDueToDetach = null;
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         mAttachedToWindow = false;
-        if (hasTransientStateSupported && !hasTransientState()) {
+        if (mDrawable != null) {
+            mKeyAtLastUnbindDueToDetach = mDrawable.getKey();
+        }
+        if (HAS_TRANSIENT_STATE_SUPPORTED && !hasTransientState()) {
             unbindDrawable();
         }
     }
