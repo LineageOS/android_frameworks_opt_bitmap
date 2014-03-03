@@ -109,6 +109,10 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         return mCurrKey;
     }
 
+    public final RequestKey getPreviousKey() {
+        return mPrevKey;
+    }
+
     protected ReusableBitmap getBitmap() {
         return mBitmap;
     }
