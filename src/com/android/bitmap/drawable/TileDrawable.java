@@ -68,6 +68,10 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
         setVisible(false);
     }
 
+    public Drawable getInnerDrawable() {
+        return mInner;
+    }
+
     @Override
     protected void onBoundsChange(Rect bounds) {
         super.onBoundsChange(bounds);

@@ -71,9 +71,12 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     private final Handler mHandler = new Handler();
 
     public ExtendedBitmapDrawable(final Resources res, final BitmapCache cache,
-            final boolean limitDensity, final ExtendedOptions opts) {
+            final boolean limitDensity, ExtendedOptions opts) {
         super(res, cache, limitDensity);
         mResources = res;
+        if (opts == null) {
+            opts = new ExtendedOptions(0);
+        }
         mOpts = opts;
 
         onOptsChanged();
@@ -258,8 +261,8 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         // Draw the two possible overlay layers in reverse-priority order.
         // (each layer will no-op the draw when appropriate)
         // This ordering means cross-fade transitions are just fade-outs of each layer.
-        if (mProgress != null) mProgress.draw(canvas);
-        if (mPlaceholder != null) mPlaceholder.draw(canvas);
+        if (mProgress != null) onDrawPlaceholderOrProgress(canvas, mProgress);
+        if (mPlaceholder != null) onDrawPlaceholderOrProgress(canvas, mPlaceholder);
     }
 
     /**
@@ -267,6 +270,13 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
      */
     protected void onDraw(final Canvas canvas) {
         super.draw(canvas);
+    }
+
+    /**
+     * Overriding this method to add your own custom placeholder or progress drawing.
+     */
+    protected void onDrawPlaceholderOrProgress(final Canvas canvas, final TileDrawable drawable) {
+        drawable.draw(canvas);
     }
 
     @Override

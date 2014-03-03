@@ -27,6 +27,7 @@ import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.Rect;
 import android.graphics.Shader.TileMode;
+import android.graphics.drawable.BitmapDrawable;
 
 import com.android.bitmap.BitmapCache;
 
@@ -35,7 +36,7 @@ import com.android.bitmap.BitmapCache;
  *
  * This draws all bitmaps as a circle with an optional border stroke.
  */
-public class CircularBitmapDrawable extends BasicBitmapDrawable {
+public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
     private static Matrix sMatrix = new Matrix();
 
     private final Paint mBitmapPaint = new Paint();
@@ -45,7 +46,12 @@ public class CircularBitmapDrawable extends BasicBitmapDrawable {
 
     public CircularBitmapDrawable(Resources res,
             BitmapCache cache, boolean limitDensity) {
-        super(res, cache, limitDensity);
+        this(res, cache, limitDensity, null);
+    }
+
+    public CircularBitmapDrawable(Resources res,
+            BitmapCache cache, boolean limitDensity, ExtendedOptions opts) {
+        super(res, cache, limitDensity, opts);
 
         mBitmapPaint.setAntiAlias(true);
         mBitmapPaint.setFilterBitmap(true);
@@ -85,7 +91,17 @@ public class CircularBitmapDrawable extends BasicBitmapDrawable {
     @Override
     protected void onDrawBitmap(final Canvas canvas, final Rect src,
             final Rect dst) {
-        onDrawCircularBitmap(getBitmap().bmp, canvas, src, dst);
+        onDrawCircularBitmap(getBitmap().bmp, canvas, src, dst, 1f);
+    }
+
+    @Override
+    protected void onDrawPlaceholderOrProgress(final Canvas canvas,
+            final TileDrawable drawable) {
+        BitmapDrawable placeholder = (BitmapDrawable) drawable.getInnerDrawable();
+        Bitmap bitmap = placeholder.getBitmap();
+        float alpha = placeholder.getPaint().getAlpha() / 255f;
+        sRect.set(0, 0, bitmap.getWidth(), bitmap.getHeight());
+        onDrawCircularBitmap(bitmap, canvas, sRect, getBounds(), alpha);
     }
 
     /**
@@ -93,7 +109,7 @@ public class CircularBitmapDrawable extends BasicBitmapDrawable {
      * BitmapShader.
      */
     protected void onDrawCircularBitmap(final Bitmap bitmap, final Canvas canvas,
-            final Rect src, final Rect dst) {
+            final Rect src, final Rect dst, final float alpha) {
         // Draw bitmap through shader first.
         BitmapShader shader = new BitmapShader(bitmap, TileMode.CLAMP,
                 TileMode.CLAMP);
@@ -109,8 +125,11 @@ public class CircularBitmapDrawable extends BasicBitmapDrawable {
 
         shader.setLocalMatrix(sMatrix);
         mBitmapPaint.setShader(shader);
+        int oldAlpha = mBitmapPaint.getAlpha();
+        mBitmapPaint.setAlpha((int) (oldAlpha * alpha));
         canvas.drawCircle(dst.centerX(), dst.centerY(), dst.width() / 2,
                 mBitmapPaint);
+        mBitmapPaint.setAlpha(oldAlpha);
 
         // Then draw the border.
         canvas.drawCircle(dst.centerX(), dst.centerY(),
