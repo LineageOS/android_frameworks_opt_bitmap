@@ -109,6 +109,15 @@ public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
      * BitmapShader.
      */
     protected void onDrawCircularBitmap(final Bitmap bitmap, final Canvas canvas,
+            final Rect src, final Rect dst) {
+        onDrawCircularBitmap(bitmap, canvas, src, dst, 1f);
+    }
+
+    /**
+     * Call this method with a given bitmap to draw it onto the given canvas, masked by a circular
+     * BitmapShader. The alpha parameter is the value from 0f to 1f to attenuate the alpha by.
+     */
+    protected void onDrawCircularBitmap(final Bitmap bitmap, final Canvas canvas,
             final Rect src, final Rect dst, final float alpha) {
         // Draw bitmap through shader first.
         BitmapShader shader = new BitmapShader(bitmap, TileMode.CLAMP,
