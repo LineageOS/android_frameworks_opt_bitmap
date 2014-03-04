@@ -89,6 +89,7 @@ public class UnrefedPooledCache<K, V extends Poolable> implements PooledCache<K,
         Trace.beginSection("cache put");
         // Null values not supported.
         if (value == null) {
+            Trace.endSection();
             return null;
         }
         synchronized (mCache) {
