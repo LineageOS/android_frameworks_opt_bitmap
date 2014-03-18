@@ -34,6 +34,9 @@ import com.android.bitmap.drawable.BasicBitmapDrawable;
 public class BitmapDrawableImageView extends ImageView {
     private static final boolean HAS_TRANSIENT_STATE_SUPPORTED =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN;
+    private static final boolean TEMPORARY = true;
+    private static final boolean PERMANENT = !TEMPORARY;
+
     private BasicBitmapDrawable mDrawable;
     private boolean mAttachedToWindow;
 
@@ -74,8 +77,12 @@ public class BitmapDrawableImageView extends ImageView {
     }
 
     private void unbindDrawable() {
+        unbindDrawable(PERMANENT);
+    }
+
+    private void unbindDrawable(boolean temporary) {
         if (mDrawable != null) {
-            mDrawable.unbind();
+            mDrawable.unbind(temporary);
         }
     }
 
@@ -121,7 +128,7 @@ public class BitmapDrawableImageView extends ImageView {
         super.onDetachedFromWindow();
         mAttachedToWindow = false;
         if (HAS_TRANSIENT_STATE_SUPPORTED && !hasTransientState()) {
-            unbindDrawable();
+            unbindDrawable(TEMPORARY);
         }
     }
 
@@ -129,7 +136,7 @@ public class BitmapDrawableImageView extends ImageView {
     public void setHasTransientState(boolean hasTransientState) {
         super.setHasTransientState(hasTransientState);
         if (!hasTransientState && !mAttachedToWindow) {
-            unbindDrawable();
+            unbindDrawable(TEMPORARY);
         }
     }
 }

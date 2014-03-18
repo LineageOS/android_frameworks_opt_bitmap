@@ -135,6 +135,8 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      * Binds to the given key and start the decode process. This will first look in the cache, then
      * decode from the request key if not found.
      *
+     * The key being replaced will be kept in {@link #mPrevKey}.
+     *
      * All UI operations should be called from the UI thread.
      */
     public void bind(RequestKey key) {
@@ -150,11 +152,28 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      * Unbinds the current key and bitmap from the drawable. This will cause the bitmap to decrement
      * its ref count.
      *
+     * This will assume that you do not want to keep the unbound key in {@link #mPrevKey}.
+     *
      * All UI operations should be called from the UI thread.
      */
     public void unbind() {
+        unbind(false);
+    }
+
+    /**
+     * Unbinds the current key and bitmap from the drawable. This will cause the bitmap to decrement
+     * its ref count.
+     *
+     * If the temporary parameter is true, we will keep the unbound key in {@link #mPrevKey}.
+     *
+     * All UI operations should be called from the UI thread.
+     */
+    public void unbind(boolean temporary) {
         Trace.beginSection("unbind");
         setImage(null);
+        if (!temporary) {
+            mPrevKey = null;
+        }
         Trace.endSection();
     }
 
