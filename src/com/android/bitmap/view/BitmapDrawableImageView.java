@@ -118,7 +118,8 @@ public class BitmapDrawableImageView extends ImageView {
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         mAttachedToWindow = true;
-        if (mDrawable != null && mDrawable.getKey() == null) {
+        if (mDrawable != null && mDrawable.getKey() == null
+              && mDrawable.getPreviousKey() != null) {
             mDrawable.bind(mDrawable.getPreviousKey());
         }
     }

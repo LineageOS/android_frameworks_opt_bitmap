@@ -142,7 +142,7 @@ public class TileDrawable extends Drawable implements Drawable.Callback {
                 setAlpha(255);
             } else {
                 // fade out
-                if (mPaint.getAlpha() == 255 && !getBounds().isEmpty()) {
+                if (mPaint.getAlpha() == 255) {
                     mFadeOutAnimator.start();
                 }
             }
