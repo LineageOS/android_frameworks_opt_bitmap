@@ -110,6 +110,7 @@ public class UnrefedPooledCache<K, V extends Poolable> implements PooledCache<K,
     public void offer(V value) {
         Trace.beginSection("pool offer");
         if (value.getRefCount() != 0 || !value.isEligibleForPooling()) {
+            Trace.endSection();
             throw new IllegalArgumentException("unexpected offer of an invalid object: " + value);
         }
         mPool.offer(value);

@@ -142,6 +142,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
     public void bind(RequestKey key) {
         Trace.beginSection("bind");
         if (mCurrKey != null && mCurrKey.equals(key)) {
+            Trace.endSection();
             return;
         }
         setImage(key);
