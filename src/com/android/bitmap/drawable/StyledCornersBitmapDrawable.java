@@ -53,7 +53,9 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
 
     private final Paint mFlapPaint = new Paint();
     private final Paint mBorderPaint = new Paint();
+    private final Paint mCompatibilityModeBackgroundPaint = new Paint();
     private final Path mClipPath = new Path();
+    private final Path mCompatibilityModePath = new Path();
     private final float mCornerRoundRadius;
     private final float mCornerFlapSide;
 
@@ -63,6 +65,7 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
     private int mBottomLeftCornerStyle = CORNER_STYLE_SHARP;
     private int mScrimColor;
     private float mBorderWidth;
+    private boolean mIsCompatibilityMode;
 
     /**
      * Create a new StyledCornersBitmapDrawable.
@@ -77,11 +80,16 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
 
         mFlapPaint.setColor(Color.TRANSPARENT);
         mFlapPaint.setStyle(Style.FILL);
+        mFlapPaint.setAntiAlias(true);
 
         mBorderPaint.setColor(Color.TRANSPARENT);
         mBorderPaint.setStyle(Style.STROKE);
         mBorderPaint.setStrokeWidth(mBorderWidth);
         mBorderPaint.setAntiAlias(true);
+
+        mCompatibilityModeBackgroundPaint.setColor(Color.TRANSPARENT);
+        mCompatibilityModeBackgroundPaint.setStyle(Style.FILL);
+        mCompatibilityModeBackgroundPaint.setAntiAlias(true);
 
         mScrimColor = Color.TRANSPARENT;
     }
@@ -129,6 +137,13 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
     }
 
     /**
+     * Get the flap color for all corners that have style {@link #CORNER_STYLE_SHARP}.
+     */
+    public int getFlapColor() {
+        return mFlapPaint.getColor();
+    }
+
+    /**
      * Set the flap color for all corners that have style {@link #CORNER_STYLE_SHARP}.
      *
      * Use {@link android.graphics.Color#TRANSPARENT} to disable flap colors.
@@ -163,6 +178,34 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
         }
     }
 
+    /**
+     * Sets whether we should work around an issue introduced in Android 4.4.3,
+     * where a WebView can corrupt the stencil buffer of the canvas when the canvas is clipped
+     * using a non-rectangular Path.
+     */
+    public void setCompatibilityMode(boolean isCompatibilityMode) {
+        boolean changed = mIsCompatibilityMode != isCompatibilityMode;
+        mIsCompatibilityMode = isCompatibilityMode;
+
+        if (changed) {
+            invalidateSelf();
+        }
+    }
+
+    /**
+     * Sets the color of the container that this drawable is in. The given color will be used in
+     * {@link #setCompatibilityMode compatibility mode} to draw fake corners to emulate clipped
+     * corners.
+     */
+    public void setCompatibilityModeBackgroundColor(int color) {
+        boolean changed = mCompatibilityModeBackgroundPaint.getColor() != color;
+        mCompatibilityModeBackgroundPaint.setColor(color);
+
+        if (changed) {
+            invalidateSelf();
+        }
+    }
+
     @Override
     protected void onBoundsChange(Rect bounds) {
         super.onBoundsChange(bounds);
@@ -182,8 +225,10 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
         }
 
         // Clip to path.
-        canvas.save();
-        canvas.clipPath(mClipPath);
+        if (!mIsCompatibilityMode) {
+            canvas.save();
+            canvas.clipPath(mClipPath);
+        }
 
         // Draw parent within path.
         super.draw(canvas);
@@ -191,7 +236,7 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
         // Draw scrim on top of parent.
         canvas.drawColor(mScrimColor);
 
-        // Draw flap.
+        // Draw flaps.
         float left = bounds.left + mBorderWidth / 2;
         float top = bounds.top + mBorderWidth / 2;
         float right = bounds.right - mBorderWidth / 2;
@@ -221,14 +266,100 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
                     mCornerRoundRadius, mFlapPaint);
         }
 
-        canvas.restore();
+        if (!mIsCompatibilityMode) {
+            canvas.restore();
+        }
+
+        if (mIsCompatibilityMode) {
+            drawFakeCornersForCompatibilityMode(canvas);
+        }
 
         // Draw border around path.
         canvas.drawPath(mClipPath, mBorderPaint);
     }
 
-    protected Path getClipPath() {
-        return mClipPath;
+    protected void drawFakeCornersForCompatibilityMode(final Canvas canvas) {
+        final Rect bounds = getBounds();
+
+        float left = bounds.left;
+        float top = bounds.top;
+        float right = bounds.right;
+        float bottom = bounds.bottom;
+
+        // Draw fake round corners.
+        RectF fakeCornerRectF = sRectF;
+        fakeCornerRectF.set(0, 0, mCornerRoundRadius * 2, mCornerRoundRadius * 2);
+        if (mTopLeftCornerStyle == CORNER_STYLE_ROUND) {
+            fakeCornerRectF.offsetTo(left, top);
+            mCompatibilityModePath.rewind();
+            mCompatibilityModePath.moveTo(left, top);
+            mCompatibilityModePath.lineTo(left + mCornerRoundRadius, top);
+            mCompatibilityModePath.arcTo(fakeCornerRectF, START_TOP, -QUARTER_CIRCLE);
+            mCompatibilityModePath.close();
+            canvas.drawPath(mCompatibilityModePath, mCompatibilityModeBackgroundPaint);
+        }
+        if (mTopRightCornerStyle == CORNER_STYLE_ROUND) {
+            fakeCornerRectF.offsetTo(right - fakeCornerRectF.width(), top);
+            mCompatibilityModePath.rewind();
+            mCompatibilityModePath.moveTo(right, top);
+            mCompatibilityModePath.lineTo(right, top + mCornerRoundRadius);
+            mCompatibilityModePath.arcTo(fakeCornerRectF, START_RIGHT, -QUARTER_CIRCLE);
+            mCompatibilityModePath.close();
+            canvas.drawPath(mCompatibilityModePath, mCompatibilityModeBackgroundPaint);
+        }
+        if (mBottomRightCornerStyle == CORNER_STYLE_ROUND) {
+            fakeCornerRectF
+                    .offsetTo(right - fakeCornerRectF.width(), bottom - fakeCornerRectF.height());
+            mCompatibilityModePath.rewind();
+            mCompatibilityModePath.moveTo(right, bottom);
+            mCompatibilityModePath.lineTo(right - mCornerRoundRadius, bottom);
+            mCompatibilityModePath.arcTo(fakeCornerRectF, START_BOTTOM, -QUARTER_CIRCLE);
+            mCompatibilityModePath.close();
+            canvas.drawPath(mCompatibilityModePath, mCompatibilityModeBackgroundPaint);
+        }
+        if (mBottomLeftCornerStyle == CORNER_STYLE_ROUND) {
+            fakeCornerRectF.offsetTo(left, bottom - fakeCornerRectF.height());
+            mCompatibilityModePath.rewind();
+            mCompatibilityModePath.moveTo(left, bottom);
+            mCompatibilityModePath.lineTo(left, bottom - mCornerRoundRadius);
+            mCompatibilityModePath.arcTo(fakeCornerRectF, START_LEFT, -QUARTER_CIRCLE);
+            mCompatibilityModePath.close();
+            canvas.drawPath(mCompatibilityModePath, mCompatibilityModeBackgroundPaint);
+        }
+
+        // Draw fake flap corners.
+        if (mTopLeftCornerStyle == CORNER_STYLE_FLAP) {
+            mCompatibilityModePath.rewind();
+            mCompatibilityModePath.moveTo(left, top);
+            mCompatibilityModePath.lineTo(left + mCornerFlapSide, top);
+            mCompatibilityModePath.lineTo(left, top + mCornerFlapSide);
+            mCompatibilityModePath.close();
+            canvas.drawPath(mCompatibilityModePath, mCompatibilityModeBackgroundPaint);
+        }
+        if (mTopRightCornerStyle == CORNER_STYLE_FLAP) {
+            mCompatibilityModePath.rewind();
+            mCompatibilityModePath.moveTo(right, top);
+            mCompatibilityModePath.lineTo(right, top + mCornerFlapSide);
+            mCompatibilityModePath.lineTo(right - mCornerFlapSide, top);
+            mCompatibilityModePath.close();
+            canvas.drawPath(mCompatibilityModePath, mCompatibilityModeBackgroundPaint);
+        }
+        if (mBottomRightCornerStyle == CORNER_STYLE_FLAP) {
+            mCompatibilityModePath.rewind();
+            mCompatibilityModePath.moveTo(right, bottom);
+            mCompatibilityModePath.lineTo(right - mCornerFlapSide, bottom);
+            mCompatibilityModePath.lineTo(right, bottom - mCornerFlapSide);
+            mCompatibilityModePath.close();
+            canvas.drawPath(mCompatibilityModePath, mCompatibilityModeBackgroundPaint);
+        }
+        if (mBottomLeftCornerStyle == CORNER_STYLE_FLAP) {
+            mCompatibilityModePath.rewind();
+            mCompatibilityModePath.moveTo(left, bottom);
+            mCompatibilityModePath.lineTo(left, bottom - mCornerFlapSide);
+            mCompatibilityModePath.lineTo(left + mCornerFlapSide, bottom);
+            mCompatibilityModePath.close();
+            canvas.drawPath(mCompatibilityModePath, mCompatibilityModeBackgroundPaint);
+        }
     }
 
     private void recalculatePath() {

@@ -43,6 +43,7 @@ public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
     private final Paint mBorderPaint = new Paint();
 
     private float mBorderWidth;
+    private Bitmap mShaderBitmap;
 
     public CircularBitmapDrawable(Resources res,
             BitmapCache cache, boolean limitDensity) {
@@ -120,20 +121,22 @@ public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
     protected void onDrawCircularBitmap(final Bitmap bitmap, final Canvas canvas,
             final Rect src, final Rect dst, final float alpha) {
         // Draw bitmap through shader first.
-        BitmapShader shader = new BitmapShader(bitmap, TileMode.CLAMP,
-                TileMode.CLAMP);
-        sMatrix.reset();
+        BitmapShader shader = (BitmapShader) mBitmapPaint.getShader();
+        if (shader == null || mShaderBitmap != bitmap) {
+          shader = new BitmapShader(bitmap, TileMode.CLAMP, TileMode.CLAMP);
+          mShaderBitmap = bitmap;
+          mBitmapPaint.setShader(shader);
+        }
 
+        sMatrix.reset();
         // Fit bitmap to bounds.
         float scale = Math.max((float) dst.width() / src.width(),
                 (float) dst.height() / src.height());
         sMatrix.postScale(scale, scale);
-
         // Translate bitmap to dst bounds.
         sMatrix.postTranslate(dst.left, dst.top);
-
         shader.setLocalMatrix(sMatrix);
-        mBitmapPaint.setShader(shader);
+
         int oldAlpha = mBitmapPaint.getAlpha();
         mBitmapPaint.setAlpha((int) (oldAlpha * alpha));
         canvas.drawCircle(dst.centerX(), dst.centerY(), dst.width() / 2,
