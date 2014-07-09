@@ -125,7 +125,6 @@ public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
         if (shader == null || mShaderBitmap != bitmap) {
           shader = new BitmapShader(bitmap, TileMode.CLAMP, TileMode.CLAMP);
           mShaderBitmap = bitmap;
-          mBitmapPaint.setShader(shader);
         }
 
         sMatrix.reset();
@@ -136,6 +135,7 @@ public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
         // Translate bitmap to dst bounds.
         sMatrix.postTranslate(dst.left, dst.top);
         shader.setLocalMatrix(sMatrix);
+        mBitmapPaint.setShader(shader);
 
         int oldAlpha = mBitmapPaint.getAlpha();
         mBitmapPaint.setAlpha((int) (oldAlpha * alpha));
