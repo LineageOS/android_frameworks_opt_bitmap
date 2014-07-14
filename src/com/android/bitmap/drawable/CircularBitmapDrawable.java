@@ -98,11 +98,21 @@ public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
     @Override
     protected void onDrawPlaceholderOrProgress(final Canvas canvas,
             final TileDrawable drawable) {
-        BitmapDrawable placeholder = (BitmapDrawable) drawable.getInnerDrawable();
-        Bitmap bitmap = placeholder.getBitmap();
-        float alpha = placeholder.getPaint().getAlpha() / 255f;
-        sRect.set(0, 0, bitmap.getWidth(), bitmap.getHeight());
-        onDrawCircularBitmap(bitmap, canvas, sRect, getBounds(), alpha);
+        Rect bounds = getBounds();
+        if (drawable.getInnerDrawable() instanceof BitmapDrawable) {
+            BitmapDrawable placeholder =
+                (BitmapDrawable) drawable.getInnerDrawable();
+            Bitmap bitmap = placeholder.getBitmap();
+            float alpha = placeholder.getPaint().getAlpha() / 255f;
+            sRect.set(0, 0, bitmap.getWidth(), bitmap.getHeight());
+            onDrawCircularBitmap(bitmap, canvas, sRect, bounds, alpha);
+        } else {
+          super.onDrawPlaceholderOrProgress(canvas, drawable);
+        }
+
+        // Then draw the border.
+        canvas.drawCircle(bounds.centerX(), bounds.centerY(),
+                bounds.width() / 2f - mBorderWidth / 2, mBorderPaint);
     }
 
     /**

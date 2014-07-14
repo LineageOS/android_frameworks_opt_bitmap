@@ -4,12 +4,24 @@ package(
     ],
 )
 
+licenses(["notice"])  # Apache License 2.0
+
+exports_files(["LICENSE"])
+
 android_manifest_merge(
     name = "merged_manifest",
     srcs = ["AndroidManifest.xml"],
     deps = [
-        "//java/com/google/android/apps/bigtop/third_party/bitmap:AndroidManifest.xml",
+        "//third_party/java_src/android_libs/bitmap_library:AndroidManifest.xml",
     ],
+)
+
+filegroup(
+    name = "resource_files",
+    srcs = glob(
+        ["res/**"],
+        exclude_directories = 1,
+    ),
 )
 
 android_resources(
@@ -17,8 +29,9 @@ android_resources(
     custom_package = "com.example.bitmapsample",
     inline_constants = 0,
     manifest = ":merged_manifest",
-    resources = glob(["res/**"]) + [
-        "//java/com/google/android/apps/bigtop/third_party/bitmap:resource_files",
+    resources = [
+        ":resource_files",
+        "//third_party/java_src/android_libs/bitmap_library:resource_files",
     ],
     resources_dir = "res",
     visibility = ["//visibility:private"],
@@ -36,6 +49,6 @@ android_binary(
     ],
     resources = ":resources",
     deps = [
-        "//java/com/google/android/apps/bigtop/third_party/bitmap",
+        "//third_party/java_src/android_libs/bitmap_library",
     ],
 )

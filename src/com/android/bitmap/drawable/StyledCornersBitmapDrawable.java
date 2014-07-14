@@ -24,6 +24,7 @@ import android.graphics.Paint.Style;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.util.Log;
 
 import com.android.bitmap.BitmapCache;
 
@@ -39,6 +40,7 @@ import com.android.bitmap.BitmapCache;
  * {@link #CORNER_STYLE_FLAP} corners have a colored flap drawn within the bounds.
  */
 public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
+    private static final String TAG = StyledCornersBitmapDrawable.class.getSimpleName();
 
     public static final int CORNER_STYLE_SHARP = 0;
     public static final int CORNER_STYLE_ROUND = 1;
@@ -66,6 +68,7 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
     private int mScrimColor;
     private float mBorderWidth;
     private boolean mIsCompatibilityMode;
+    private boolean mEatInvalidates;
 
     /**
      * Create a new StyledCornersBitmapDrawable.
@@ -224,6 +227,8 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
             return;
         }
 
+        pauseInvalidate();
+
         // Clip to path.
         if (!mIsCompatibilityMode) {
             canvas.save();
@@ -276,6 +281,17 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
 
         // Draw border around path.
         canvas.drawPath(mClipPath, mBorderPaint);
+
+        resumeInvalidate();
+    }
+
+    @Override
+    public void invalidateSelf() {
+        if (!mEatInvalidates) {
+            super.invalidateSelf();
+        } else {
+            Log.d(TAG, "Skipping invalidate.");
+        }
     }
 
     protected void drawFakeCornersForCompatibilityMode(final Canvas canvas) {
@@ -360,6 +376,14 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
             mCompatibilityModePath.close();
             canvas.drawPath(mCompatibilityModePath, mCompatibilityModeBackgroundPaint);
         }
+    }
+
+    private void pauseInvalidate() {
+        mEatInvalidates = true;
+    }
+
+    private void resumeInvalidate() {
+        mEatInvalidates = false;
     }
 
     private void recalculatePath() {

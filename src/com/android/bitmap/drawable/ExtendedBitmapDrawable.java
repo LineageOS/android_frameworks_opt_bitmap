@@ -55,7 +55,7 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     public static final int LOAD_STATE_FAILED = 4;
 
     public static final boolean DEBUG = false;
-    public static final String TAG = ExtendedBitmapDrawable.class.getSimpleName();
+    private static final String TAG = ExtendedBitmapDrawable.class.getSimpleName();
 
     private final Resources mResources;
     private final ExtendedOptions mOpts;
@@ -102,18 +102,20 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
                 ConstantState constantState = mOpts.placeholder.getConstantState();
                 if (constantState != null) {
                     placeholder = constantState.newDrawable(mResources);
+                } else {
+                    placeholder = mOpts.placeholder;
+                }
 
-                    Rect bounds = mOpts.placeholder.getBounds();
-                    if (bounds.width() != 0) {
-                        placeholderWidth = bounds.width();
-                    } else if (placeholder.getIntrinsicWidth() != -1) {
-                        placeholderWidth = placeholder.getIntrinsicWidth();
-                    }
-                    if (bounds.height() != 0) {
-                        placeholderHeight = bounds.height();
-                    } else if (placeholder.getIntrinsicHeight() != -1) {
-                        placeholderHeight = placeholder.getIntrinsicHeight();
-                    }
+                Rect bounds = mOpts.placeholder.getBounds();
+                if (bounds.width() != 0) {
+                    placeholderWidth = bounds.width();
+                } else if (placeholder.getIntrinsicWidth() != -1) {
+                    placeholderWidth = placeholder.getIntrinsicWidth();
+                }
+                if (bounds.height() != 0) {
+                    placeholderHeight = bounds.height();
+                } else if (placeholder.getIntrinsicHeight() != -1) {
+                    placeholderHeight = placeholder.getIntrinsicHeight();
                 }
             }
 
@@ -198,7 +200,11 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
 
     @Override
     protected void setBitmap(ReusableBitmap bmp) {
-        setLoadState((bmp != null) ? LOAD_STATE_LOADED : LOAD_STATE_FAILED);
+        if (bmp != null) {
+            setLoadState(LOAD_STATE_LOADED);
+        } else {
+            onDecodeFailed();
+        }
 
         super.setBitmap(bmp);
     }
@@ -215,6 +221,13 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
         }
 
         super.loadFileDescriptorFactory();
+    }
+
+    @Override
+    protected void onDecodeFailed() {
+        super.onDecodeFailed();
+
+        setLoadState(LOAD_STATE_FAILED);
     }
 
     protected boolean shouldExecuteStateChange() {

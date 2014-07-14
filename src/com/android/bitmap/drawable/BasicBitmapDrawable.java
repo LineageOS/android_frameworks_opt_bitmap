@@ -203,7 +203,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         }
 
         if (key == null) {
-            invalidateSelf();
+            onDecodeFailed();
             Trace.endSection();
             return;
         }
@@ -241,6 +241,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      */
     protected void loadFileDescriptorFactory() {
         if (mCurrKey == null || mDecodeWidth == 0 || mDecodeHeight == 0) {
+            onDecodeFailed();
             return;
         }
 
@@ -258,13 +259,27 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
             final FileDescriptorFactory factory) {
         if (mCreateFileDescriptorFactoryTask == null) {
             // Cancelled.
+            onDecodeFailed();
             return;
         }
         mCreateFileDescriptorFactoryTask = null;
 
+        if (factory == null) {
+            // Failed.
+            onDecodeFailed();
+            return;
+        }
+
         if (key.equals(mCurrKey)) {
             decode(factory);
         }
+    }
+
+    /**
+     * Called when the decode process is cancelled at any time.
+     */
+    protected void onDecodeFailed() {
+        invalidateSelf();
     }
 
     /**

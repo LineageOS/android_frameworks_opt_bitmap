@@ -117,7 +117,7 @@ public interface RequestKey {
          * the UI thread.
          * @param key The key that the FileDescriptorFactory was created for. The callback should
          *            check that the key has not changed.
-         * @param factory The FileDescriptorFactory to decode from.
+         * @param factory The FileDescriptorFactory to decode from. Pass null to cancel decode.
          */
         void fileDescriptorFactoryCreated(RequestKey key, FileDescriptorFactory factory);
     }
