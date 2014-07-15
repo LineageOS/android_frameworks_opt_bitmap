@@ -304,10 +304,17 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
             mTask.cancel();
         }
         final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, getDecodeVerticalCenter(),
-                DecodeOptions.STRATEGY_ROUND_NEAREST);
+                getDecodeStrategy());
         mTask = new DecodeTask(mCurrKey, opts, factory, this, mCache);
         mTask.executeOnExecutor(getExecutor());
         Trace.endSection();
+    }
+
+    /**
+     * Return one of the STRATEGY constants in {@link DecodeOptions}.
+     */
+    protected int getDecodeStrategy() {
+        return DecodeOptions.STRATEGY_ROUND_NEAREST;
     }
 
     protected Executor getExecutor() {
