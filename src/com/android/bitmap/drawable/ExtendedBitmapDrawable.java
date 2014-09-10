@@ -246,6 +246,11 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
     }
 
     @Override
+    protected float getDecodeHorizontalCenter() {
+        return mOpts.decodeHorizontalCenter;
+    }
+
+    @Override
     protected float getDecodeVerticalCenter() {
         return mOpts.decodeVerticalCenter;
     }
@@ -690,6 +695,16 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
          * Optional field for general decoding.
          *
          * This field determines which section of the source image to decode from. A value of 0
+         * indicates a preference for the far left of the source, while a value of 1 indicates a
+         * preference for the far right of the source. A value of .5 will result in the center
+         * of the source being decoded.
+         */
+        public float decodeHorizontalCenter = 1f / 2;
+
+        /**
+         * Optional field for general decoding.
+         *
+         * This field determines which section of the source image to decode from. A value of 0
          * indicates a preference for the very top of the source, while a value of 1 indicates a
          * preference for the very bottom of the source. A value of .5 will result in the center
          * of the source being decoded.
@@ -778,6 +793,11 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
          */
         private void validate()
                 throws IllegalStateException {
+            if (decodeHorizontalCenter < 0 || decodeHorizontalCenter > 1) {
+                throw new IllegalStateException(
+                        "ExtendedOptions: decodeHorizontalCenter must be within 0 and 1, " +
+                                "inclusive");
+            }
             if (decodeVerticalCenter < 0 || decodeVerticalCenter > 1) {
                 throw new IllegalStateException(
                         "ExtendedOptions: decodeVerticalCenter must be within 0 and 1, inclusive");

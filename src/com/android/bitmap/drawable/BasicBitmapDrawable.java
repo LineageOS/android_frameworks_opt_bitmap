@@ -86,6 +86,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
 
     private static final int MAX_BITMAP_DENSITY = DisplayMetrics.DENSITY_HIGH;
     private static final float VERTICAL_CENTER = 1f / 2;
+    private static final float HORIZONTAL_CENTER = 1f / 2;
     private static final float NO_MULTIPLIER = 1f;
 
     private static final String TAG = BasicBitmapDrawable.class.getSimpleName();
@@ -303,8 +304,8 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         if (mTask != null) {
             mTask.cancel();
         }
-        final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, getDecodeVerticalCenter(),
-                getDecodeStrategy());
+        final DecodeOptions opts = new DecodeOptions(bufferW, bufferH, getDecodeHorizontalCenter(),
+                getDecodeVerticalCenter(), getDecodeStrategy());
         mTask = new DecodeTask(mCurrKey, opts, factory, this, mCache);
         mTask.executeOnExecutor(getExecutor());
         Trace.endSection();
@@ -333,6 +334,14 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
      * Clients can override this to specify which section of the source image to decode from.
      * Possible applications include using face detection to always decode around facial features.
      */
+    protected float getDecodeHorizontalCenter() {
+        return HORIZONTAL_CENTER;
+    }
+
+    /**
+     * Clients can override this to specify which section of the source image to decode from.
+     * Possible applications include using face detection to always decode around facial features.
+     */
     protected float getDecodeVerticalCenter() {
         return VERTICAL_CENTER;
     }
@@ -348,7 +357,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
             BitmapUtils.calculateCroppedSrcRect(
                     mBitmap.getLogicalWidth(), mBitmap.getLogicalHeight(),
                     bounds.width(), bounds.height(),
-                    bounds.height(), Integer.MAX_VALUE,
+                    bounds.height(), Integer.MAX_VALUE, getDecodeHorizontalCenter(),
                     getDrawVerticalCenter(), false /* absoluteFraction */,
                     getDrawVerticalOffsetMultiplier(), sRect);
 

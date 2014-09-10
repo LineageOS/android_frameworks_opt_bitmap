@@ -323,8 +323,8 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                         // if" the orientation has been corrected.
                         // Center the decode on the top 1/3.
                         BitmapUtils.calculateCroppedSrcRect(srcW, srcH, mDecodeOpts.destW,
-                                mDecodeOpts.destH,
-                                mDecodeOpts.destH, mOpts.inSampleSize, mDecodeOpts.verticalCenter,
+                                mDecodeOpts.destH, mDecodeOpts.destH, mOpts.inSampleSize,
+                                mDecodeOpts.horizontalCenter, mDecodeOpts.verticalCenter,
                                 true /* absoluteFraction */,
                                 1f, srcRect);
                         if (DEBUG) {
@@ -553,6 +553,12 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         public int destH;
         /**
          * If the destination dimensions are smaller than the source image provided by the request
+         * key, this will determine where horizontally the destination rect will be cropped from.
+         * Value from 0f for left-most crop to 1f for right-most crop.
+         */
+        public float horizontalCenter;
+        /**
+         * If the destination dimensions are smaller than the source image provided by the request
          * key, this will determine where vertically the destination rect will be cropped from.
          * Value from 0f for top-most crop to 1f for bottom-most crop.
          */
@@ -563,11 +569,11 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
         public int sampleSizeStrategy;
 
         public DecodeOptions(final int destW, final int destH) {
-            this(destW, destH, 0.5f, STRATEGY_ROUND_NEAREST);
+            this(destW, destH, 0.5f, 0.5f, STRATEGY_ROUND_NEAREST);
         }
 
         /**
-         * Create new DecodeOptions.
+         * Create new DecodeOptions with horizontally-centered cropping if applicable.
          * @param destW The destination width to decode to.
          * @param destH The destination height to decode to.
          * @param verticalCenter If the destination dimensions are smaller than the source image
@@ -575,10 +581,28 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
          *                       the destination rect will be cropped from.
          * @param sampleSizeStrategy One of the STRATEGY constants.
          */
-        public DecodeOptions(final int destW, final int destH, final float verticalCenter,
-                final int sampleSizeStrategy) {
+        public DecodeOptions(final int destW, final int destH,
+                final float verticalCenter, final int sampleSizeStrategy) {
+            this(destW, destH, 0.5f, verticalCenter, sampleSizeStrategy);
+        }
+
+        /**
+         * Create new DecodeOptions.
+         * @param destW The destination width to decode to.
+         * @param destH The destination height to decode to.
+         * @param horizontalCenter If the destination dimensions are smaller than the source image
+         *                         provided by the request key, this will determine where
+         *                         horizontally the destination rect will be cropped from.
+         * @param verticalCenter If the destination dimensions are smaller than the source image
+         *                       provided by the request key, this will determine where vertically
+         *                       the destination rect will be cropped from.
+         * @param sampleSizeStrategy One of the STRATEGY constants.
+         */
+        public DecodeOptions(final int destW, final int destH, final float horizontalCenter,
+                final float verticalCenter, final int sampleSizeStrategy) {
             this.destW = destW;
             this.destH = destH;
+            this.horizontalCenter = horizontalCenter;
             this.verticalCenter = verticalCenter;
             this.sampleSizeStrategy = sampleSizeStrategy;
         }
