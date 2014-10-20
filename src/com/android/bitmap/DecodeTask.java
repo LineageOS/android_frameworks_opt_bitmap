@@ -440,8 +440,11 @@ public class DecodeTask extends AsyncTask<Void, Void, ReusableBitmap> {
                 }
             }
 
-            // Put result in cache, regardless of null.  The cache will handle null results.
-            mCache.put(mKey, result);
+            // Cancellations can't be guaranteed to be correct, so skip the cache
+            if (!isCancelled()) {
+                // Put result in cache, regardless of null. The cache will handle null results.
+                mCache.put(mKey, result);
+            }
             if (result != null) {
                 result.acquireReference();
                 if (DEBUG) {
