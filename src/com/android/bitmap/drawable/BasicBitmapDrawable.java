@@ -58,8 +58,6 @@ import java.util.concurrent.TimeUnit;
 public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         Drawable.Callback, RequestKey.Callback {
 
-    protected static Rect sRect;
-
     protected RequestKey mCurrKey;
     protected RequestKey mPrevKey;
     protected int mDecodeWidth;
@@ -67,6 +65,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
 
     protected final Paint mPaint = new Paint();
     private final BitmapCache mCache;
+    private final Rect mRect = new Rect();
 
     private final boolean mLimitDensity;
     private final float mDensity;
@@ -100,10 +99,6 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         mPaint.setFilterBitmap(true);
         mPaint.setAntiAlias(true);
         mPaint.setDither(true);
-
-        if (sRect == null) {
-            sRect = new Rect();
-        }
     }
 
     public final RequestKey getKey() {
@@ -265,12 +260,6 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
         }
         mCreateFileDescriptorFactoryTask = null;
 
-        if (factory == null) {
-            // Failed.
-            onDecodeFailed();
-            return;
-        }
-
         if (key.equals(mCurrKey)) {
             decode(factory);
         }
@@ -359,7 +348,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
                     bounds.width(), bounds.height(),
                     bounds.height(), Integer.MAX_VALUE, getDecodeHorizontalCenter(),
                     getDrawVerticalCenter(), false /* absoluteFraction */,
-                    getDrawVerticalOffsetMultiplier(), sRect);
+                    getDrawVerticalOffsetMultiplier(), mRect);
 
             final int orientation = mBitmap.getOrientation();
             // calculateCroppedSrcRect() gave us the source rectangle "as if" the orientation has
@@ -367,7 +356,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
             // coordinates.
             RectUtils.rotateRectForOrientation(orientation,
                     new Rect(0, 0, mBitmap.getLogicalWidth(), mBitmap.getLogicalHeight()),
-                    sRect);
+                    mRect);
 
             // We may need to rotate the canvas, so we also have to rotate the bounds.
             final Rect rotatedBounds = new Rect(bounds);
@@ -376,7 +365,7 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
             // Rotate the canvas.
             canvas.save();
             canvas.rotate(orientation, bounds.centerX(), bounds.centerY());
-            onDrawBitmap(canvas, sRect, rotatedBounds);
+            onDrawBitmap(canvas, mRect, rotatedBounds);
             canvas.restore();
         }
     }

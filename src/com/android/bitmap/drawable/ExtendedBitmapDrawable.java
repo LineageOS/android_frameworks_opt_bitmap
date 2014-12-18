@@ -712,11 +712,8 @@ public class ExtendedBitmapDrawable extends BasicBitmapDrawable implements
          * This should not be confused with {@link #setParallaxFraction(float)}. This field
          * determines the general section for decode. The parallax fraction then determines the
          * slice from within that section for display.
-         *
-         * The default value of 1f / 3 provides a good heuristic for the subject's face in a
-         * portrait photo.
          */
-        public float decodeVerticalCenter = 1f / 3;
+        public float decodeVerticalCenter = 1f / 2;
 
         /**
          * Required field if {@link #FEATURE_ORDERED_DISPLAY} is supported.

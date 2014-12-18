@@ -37,10 +37,10 @@ import com.android.bitmap.BitmapCache;
  * This draws all bitmaps as a circle with an optional border stroke.
  */
 public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
-    private static Matrix sMatrix = new Matrix();
-
     private final Paint mBitmapPaint = new Paint();
     private final Paint mBorderPaint = new Paint();
+    private final Rect mRect = new Rect();
+    private final Matrix mMatrix = new Matrix();
 
     private float mBorderWidth;
     private Bitmap mShaderBitmap;
@@ -104,8 +104,8 @@ public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
                 (BitmapDrawable) drawable.getInnerDrawable();
             Bitmap bitmap = placeholder.getBitmap();
             float alpha = placeholder.getPaint().getAlpha() / 255f;
-            sRect.set(0, 0, bitmap.getWidth(), bitmap.getHeight());
-            onDrawCircularBitmap(bitmap, canvas, sRect, bounds, alpha);
+            mRect.set(0, 0, bitmap.getWidth(), bitmap.getHeight());
+            onDrawCircularBitmap(bitmap, canvas, mRect, bounds, alpha);
         } else {
           super.onDrawPlaceholderOrProgress(canvas, drawable);
         }
@@ -137,14 +137,14 @@ public class CircularBitmapDrawable extends ExtendedBitmapDrawable {
           mShaderBitmap = bitmap;
         }
 
-        sMatrix.reset();
+        mMatrix.reset();
         // Fit bitmap to bounds.
         float scale = Math.max((float) dst.width() / src.width(),
                 (float) dst.height() / src.height());
-        sMatrix.postScale(scale, scale);
+        mMatrix.postScale(scale, scale);
         // Translate bitmap to dst bounds.
-        sMatrix.postTranslate(dst.left, dst.top);
-        shader.setLocalMatrix(sMatrix);
+        mMatrix.postTranslate(dst.left, dst.top);
+        shader.setLocalMatrix(mMatrix);
         mBitmapPaint.setShader(shader);
 
         int oldAlpha = mBitmapPaint.getAlpha();
