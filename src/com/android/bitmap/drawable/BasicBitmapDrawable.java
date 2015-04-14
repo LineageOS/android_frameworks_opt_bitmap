@@ -73,6 +73,8 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
     private DecodeTask mTask;
     private Cancelable mCreateFileDescriptorFactoryTask;
 
+    private int mLayoutDirection;
+
     // based on framework CL:I015d77
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
     private static final int CORE_POOL_SIZE = CPU_COUNT + 1;
@@ -125,6 +127,40 @@ public class BasicBitmapDrawable extends Drawable implements DecodeCallback,
             mDecodeHeight = height;
             setImage(mCurrKey);
         }
+    }
+
+    /**
+     * Set layout direction.
+     * It ends with Local so as not conflict with hidden Drawable.setLayoutDirection.
+     * @param layoutDirection the resolved layout direction for the drawable,
+     *                        either {@link android.view.View#LAYOUT_DIRECTION_LTR}
+     *                        or {@link android.view.View#LAYOUT_DIRECTION_RTL}
+     */
+    public void setLayoutDirectionLocal(int layoutDirection) {
+        if (mLayoutDirection != layoutDirection) {
+            mLayoutDirection = layoutDirection;
+            onLayoutDirectionChangeLocal(layoutDirection);
+        }
+    }
+
+    /**
+     * Called when the drawable's resolved layout direction changes.
+     * It ends with Local so as not conflict with hidden Drawable.onLayoutDirectionChange.
+     *
+     * @param layoutDirection the new resolved layout direction
+     */
+    public void onLayoutDirectionChangeLocal(int layoutDirection) {}
+
+    /**
+     * Returns the resolved layout direction for this Drawable.
+     * It ends with Local so as not conflict with hidden Drawable.getLayoutDirection.
+     *
+     * @return One of {@link android.view.View#LAYOUT_DIRECTION_LTR},
+     *         {@link android.view.View#LAYOUT_DIRECTION_RTL}
+     * @see #setLayoutDirectionLocal(int)
+     */
+    public int getLayoutDirectionLocal() {
+        return mLayoutDirection;
     }
 
     /**

@@ -25,6 +25,7 @@ import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.Log;
+import android.view.View;
 
 import com.android.bitmap.BitmapCache;
 
@@ -65,6 +66,12 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
     private int mTopRightCornerStyle = CORNER_STYLE_SHARP;
     private int mBottomRightCornerStyle = CORNER_STYLE_SHARP;
     private int mBottomLeftCornerStyle = CORNER_STYLE_SHARP;
+
+    private int mTopStartCornerStyle = CORNER_STYLE_SHARP;
+    private int mTopEndCornerStyle = CORNER_STYLE_SHARP;
+    private int mBottomEndCornerStyle = CORNER_STYLE_SHARP;
+    private int mBottomStartCornerStyle = CORNER_STYLE_SHARP;
+
     private int mScrimColor;
     private float mBorderWidth;
     private boolean mIsCompatibilityMode;
@@ -122,21 +129,18 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
         }
     }
 
-    /** Set the corner styles for all four corners */
-    public void setCornerStyles(int topLeft, int topRight, int bottomRight, int bottomLeft) {
-        boolean changed = mTopLeftCornerStyle != topLeft
-                || mTopRightCornerStyle != topRight
-                || mBottomRightCornerStyle != bottomRight
-                || mBottomLeftCornerStyle != bottomLeft;
+    /** Set the corner styles for all four corners specified in RTL friendly ways */
+    public void setCornerStylesRelative(int topStart, int topEnd, int bottomEnd, int bottomStart) {
+        mTopStartCornerStyle = topStart;
+        mTopEndCornerStyle = topEnd;
+        mBottomEndCornerStyle = bottomEnd;
+        mBottomStartCornerStyle = bottomStart;
+        resolveCornerStyles();
+    }
 
-        mTopLeftCornerStyle = topLeft;
-        mTopRightCornerStyle = topRight;
-        mBottomRightCornerStyle = bottomRight;
-        mBottomLeftCornerStyle = bottomLeft;
-
-        if (changed) {
-            recalculatePath();
-        }
+    @Override
+    public void onLayoutDirectionChangeLocal(int layoutDirection) {
+        resolveCornerStyles();
     }
 
     /**
@@ -461,5 +465,31 @@ public class StyledCornersBitmapDrawable extends ExtendedBitmapDrawable {
 
         // Finish.
         mClipPath.close();
+    }
+
+    private void resolveCornerStyles() {
+        boolean isLtr = getLayoutDirectionLocal() == View.LAYOUT_DIRECTION_LTR;
+        setCornerStyles(
+            isLtr ? mTopStartCornerStyle : mTopEndCornerStyle,
+            isLtr ? mTopEndCornerStyle : mTopStartCornerStyle,
+            isLtr ? mBottomEndCornerStyle : mBottomStartCornerStyle,
+            isLtr ? mBottomStartCornerStyle : mBottomEndCornerStyle);
+    }
+
+    /** Set the corner styles for all four corners */
+    private void setCornerStyles(int topLeft, int topRight, int bottomRight, int bottomLeft) {
+        boolean changed = mTopLeftCornerStyle != topLeft
+            || mTopRightCornerStyle != topRight
+            || mBottomRightCornerStyle != bottomRight
+            || mBottomLeftCornerStyle != bottomLeft;
+
+        mTopLeftCornerStyle = topLeft;
+        mTopRightCornerStyle = topRight;
+        mBottomRightCornerStyle = bottomRight;
+        mBottomLeftCornerStyle = bottomLeft;
+
+        if (changed) {
+            recalculatePath();
+        }
     }
 }

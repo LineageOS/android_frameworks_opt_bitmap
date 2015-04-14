@@ -157,4 +157,12 @@ public class BitmapDrawableImageView extends ImageView {
             unbindDrawable(TEMPORARY);
         }
     }
+
+    @Override
+    public void onRtlPropertiesChanged(int layoutDirection) {
+        super.onRtlPropertiesChanged(layoutDirection);
+        if (mDrawable != null) {
+          mDrawable.setLayoutDirectionLocal(layoutDirection);
+        }
+    }
 }
